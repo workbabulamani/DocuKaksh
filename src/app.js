@@ -8,6 +8,7 @@ import { createAudit } from './audit.js';
 import { createVault } from './vault.js';
 import { createApiRouter } from './routes.js';
 import { encryptExistingFiles, purgeExpiredTrash } from './maintenance.js';
+import { createBackups, applyPendingRestore } from './backup.js';
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const SIX_HOURS = 6 * 3600 * 1000;
@@ -22,6 +23,8 @@ export function createApp({
   recycleRetentionDays = 30,
   loginMaxFailures = 5,
   loginLockMinutes = 15,
+  backupDir = '',
+  onRestart = () => {},
 }) {
   if (!encryptionKey) {
     throw new Error('An encryption key is required. Set ENCRYPTION_KEY in .env (run: npm run gen-key).');
@@ -36,7 +39,15 @@ export function createApp({
   fs.rmSync(previewsDir, { recursive: true, force: true });
   fs.mkdirSync(previewsDir, { recursive: true });
 
+  // A restore requested from the admin screen is applied before the database is opened.
+  applyPendingRestore(path.resolve(dataDir));
   const db = openDatabase(path.resolve(dataDir, 'docukaksh.db'));
+  const backups = createBackups({
+    db,
+    dataDir: path.resolve(dataDir),
+    backupDir: backupDir ? path.resolve(backupDir) : path.resolve(dataDir, 'backups'),
+    uploadsDir,
+  });
   const vault = createVault(encryptionKey);
   const access = createAccess({ db, uploadsDir });
   const audit = createAudit(db);
@@ -58,6 +69,8 @@ export function createApp({
 
   app.use('/api', createApiRouter({
     db,
+    backups,
+    requestRestart: onRestart,
     access,
     audit,
     vault,
@@ -79,11 +92,23 @@ export function createApp({
   const timer = setInterval(maintain, SIX_HOURS);
   timer.unref();
 
+  // Scheduled backups are checked every minute.
+  const backupTimer = setInterval(() => {
+    try {
+      const meta = backups.tick();
+      if (meta) audit.record(null, 'backup.auto', { name: meta.id, detail: `${meta.files} files` });
+    } catch (err) {
+      console.error('scheduled backup failed:', err.message);
+    }
+  }, 60 * 1000);
+  backupTimer.unref();
+
   return {
     app,
     db,
     close() {
       clearInterval(timer);
+      clearInterval(backupTimer);
     },
   };
 }

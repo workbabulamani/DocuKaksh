@@ -44,6 +44,38 @@ Check that the Wi-Fi network is set to **Private** (Settings → Network & inter
 
 To allow only this computer, set `HOST=127.0.0.1` in `.env`.
 
+
+## Two-factor sign-in (authenticator app)
+
+Optional and per account. Turn it on in **Settings → Account → Two-factor sign-in**: scan the QR code with Google Authenticator, Microsoft Authenticator, Authy or a similar app, or type the key in by hand. Confirm with a code from the app, then sign-in asks for a code after the password.
+
+- **Don’t ask again on this browser for 30 days** on the code screen skips the code on that browser only.
+- Turning it off asks for the password.
+- If the authenticator app is lost, a super admin can run `docker compose exec docukaksh node src/cli.js disable-2fa <email>` on the server.
+
+## Backups
+
+**Settings → Administration → Backups** (super admin):
+
+- **Back up now**, or a schedule: manual only, every day, or every week at a chosen time. Old backups beyond the number you keep are removed.
+- Each backup is a consistent copy of the database plus every encrypted file. Files that have not changed are shared with the previous backup, so backups stay small.
+- **Download** a backup as a zip file, **restore** one from the list, or restore from a zip file you upload.
+- A restore moves the current data into a folder named `before-restore-…` (nothing is deleted), then the app restarts to apply the backup. In Docker the container restarts itself. Without Docker, start the app again.
+- Backups need the same `ENCRYPTION_KEY` as the data they came from. Keep the key safe.
+- Set `BACKUP_DIR` in `.env` to keep backups on another drive.
+
+## Languages
+
+Settings → Account → Language. English, Hindi, Bengali, Telugu, Tamil, Marathi, Urdu, Spanish, French, German, Chinese and Arabic. The main screens are translated; file names, messages and some dialogs are still English. Translations are a first version and should be checked by native speakers. Arabic and Urdu switch the layout to right-to-left.
+
+## Profile
+
+Settings → Account: first name, last name, phone and organisation.
+
+## Long folders
+
+Lists are split into pages. Choose how many items per page in Settings → Appearance (10, 25, 50, 100 or 200).
+
 ## Where data is stored
 
 Inside the data folder (`DATA_HOST_DIR`, default `./docukaksh-data`):

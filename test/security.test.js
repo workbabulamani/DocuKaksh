@@ -237,7 +237,7 @@ test('repeated failed sign-ins lock the account for a while, even with the right
 test('a preference is saved per account and unknown values are refused', async () => {
   let r = await call('PATCH', '/auth/me', { body: { text_size: 'xlarge', contrast: 'high', density: 'compact', theme: 'nord' } });
   assert.equal(r.status, 200);
-  assert.deepEqual(r.data, { theme: 'nord', text_size: 'xlarge', contrast: 'high', density: 'compact', accent_primary: '', accent_secondary: '' });
+  assert.deepEqual(r.data, { theme: 'nord', text_size: 'xlarge', contrast: 'high', density: 'compact', accent_primary: '', accent_secondary: '', language: 'en', page_size: 50 });
   r = await call('GET', '/auth/status');
   assert.equal(r.data.user.contrast, 'high');
   r = await call('PATCH', '/auth/me', { body: { density: 'cosy' } });

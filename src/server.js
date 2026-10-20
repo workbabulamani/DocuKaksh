@@ -23,6 +23,12 @@ const { app, db, close } = createApp({
   recycleRetentionDays: config.recycleRetentionDays,
   loginMaxFailures: config.loginMaxFailures,
   loginLockMinutes: config.loginLockMinutes,
+  backupDir: config.backupDir,
+  onRestart: () => {
+    // The data was replaced by a restore. Exit so the process (or Docker) starts again on the restored data.
+    console.log('Restore staged. Restarting to apply it.');
+    process.exit(0);
+  },
 });
 
 // IPv4 addresses other devices on the same network can use.

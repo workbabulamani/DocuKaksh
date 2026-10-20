@@ -10,6 +10,10 @@ import {
 } from './auth.js';
 import { ROLES, THEMES, can, permissionsFor } from './permissions.js';
 import { createDocumentsRouter } from './documents.js';
+import QRCode from 'qrcode';
+import { newSecret, matchStep, otpauthUri } from './totp.js';
+import { MODES } from './backup.js';
+import { LANGUAGE_CODES } from './permissions.js';
 import { HttpError, badRequest, cleanEmail, cleanPassword, notFound, parseCookies, parseId } from './http.js';
 
 // Paths a user may call while they still have to change their temporary password.
@@ -20,6 +24,8 @@ const PREFERENCES = {
   text_size: ['normal', 'large', 'xlarge'],
   contrast: ['normal', 'high'],
   density: ['comfortable', 'compact'],
+  page_size: [10, 25, 50, 100, 200],
+  language: LANGUAGE_CODES,
 };
 
 const cleanRole = (value) => {
@@ -41,7 +47,7 @@ const dirBytes = (dir) => {
   return total;
 };
 
-export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir, previewsDir, cookieSecure, maxUploadBytes, loginMaxFailures, loginLockMinutes, recycleRetentionDays }) {
+export function createApiRouter({ db, access, audit, vault, backups, requestRestart = () => {}, dataDir, incomingDir, previewsDir, cookieSecure, maxUploadBytes, loginMaxFailures, loginLockMinutes, recycleRetentionDays }) {
   const router = express.Router();
   router.use(express.json({ limit: '100kb' }));
 
@@ -132,6 +138,11 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
         density: user.density,
         accent_primary: user.accent_primary,
         accent_secondary: user.accent_secondary,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        language: user.language,
+        page_size: user.page_size,
+        twoFactor: user.totp_enabled === 1,
         mustChangePassword: user.must_change_password === 1,
         permissions: permissionsFor(user.role),
         pendingRequests: can(user, 'recovery:manage')
@@ -170,6 +181,12 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
       audit.record(null, 'auth.failed', { detail: email });
       throw new HttpError(401, 'Invalid email or password');
     }
+    if (user.totp_enabled && !trustedDevice(req, user.id)) {
+      for (const [token, entry] of pendingLogins) if (entry.expires < Date.now()) pendingLogins.delete(token);
+      const pendingToken = crypto.randomBytes(24).toString('base64url');
+      pendingLogins.set(pendingToken, { userId: user.id, keys, expires: Date.now() + 5 * 60 * 1000 });
+      return res.json({ totpRequired: true, pendingToken });
+    }
     clearFailures(keys);
     issueSession(res, user.id);
     audit.record(user, 'auth.login');
@@ -199,6 +216,28 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
     res.status(202).json({
       message: 'If that account exists, a request has been sent to the super admin. They will contact you with a temporary password.',
     });
+  });
+
+  router.post('/auth/login/totp', (req, res) => {
+    const pendingToken = String(req.body?.pendingToken ?? '');
+    const entry = pendingLogins.get(pendingToken);
+    if (!entry || entry.expires < Date.now()) throw new HttpError(401, 'The sign-in step expired. Sign in again.');
+    if (lockedUntil(entry.keys) > Date.now()) throw new HttpError(429, 'Too many failed attempts. Try again later.');
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(entry.userId);
+    if (!user || !user.active || !user.totp_enabled) throw new HttpError(401, 'Sign in again.');
+    const step = matchStep(vault.openText(user.totp_secret), req.body?.code, user.totp_last_step);
+    if (step === null) {
+      entry.keys.forEach(registerFailure);
+      audit.record(user, 'auth.2fa_failed');
+      throw new HttpError(401, 'That code is not right. Check the code in your authenticator app.');
+    }
+    db.prepare('UPDATE users SET totp_last_step = ? WHERE id = ?').run(step, user.id);
+    pendingLogins.delete(pendingToken);
+    clearFailures(entry.keys);
+    if (req.body?.remember === true) rememberDevice(res, user.id);
+    issueSession(res, user.id);
+    audit.record(user, 'auth.login', { detail: 'two-factor' });
+    res.json({ id: user.id, email: user.email, role: user.role, mustChangePassword: user.must_change_password === 1 });
   });
 
   // ---- Authenticated -------------------------------------------------------------
@@ -241,7 +280,7 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
       if (!allowed.includes(req.body[field])) throw badRequest(`Unknown ${field.replace('_', ' ')}`);
       db.prepare(`UPDATE users SET ${field} = ? WHERE id = ?`).run(req.body[field], req.user.id);
     }
-    const row = db.prepare('SELECT theme, text_size, contrast, density, accent_primary, accent_secondary FROM users WHERE id = ?').get(req.user.id);
+    const row = db.prepare('SELECT theme, text_size, contrast, density, accent_primary, accent_secondary, language, page_size FROM users WHERE id = ?').get(req.user.id);
     res.json(row);
   });
 
@@ -490,6 +529,154 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
   router.use(createDocumentsRouter({
     db, access, audit, vault, incomingDir, previewsDir, maxUploadBytes, requirePermission,
   }));
+
+  // ---- Two-factor sign-in (authenticator app) -----------------------------------
+
+  // Sign-ins that passed the password step and wait for a code. Kept in memory for five minutes.
+  const pendingLogins = new Map();
+  const DEVICE_COOKIE = 'dk_device';
+  const DEVICE_DAYS = 30;
+  const sha256Hex = (value) => crypto.createHash('sha256').update(value).digest('hex');
+
+  function trustedDevice(req, userId) {
+    const token = parseCookies(req.headers.cookie)[DEVICE_COOKIE];
+    if (!token) return false;
+    const row = db.prepare('SELECT user_id, expires_at FROM trusted_devices WHERE token_hash = ?').get(sha256Hex(token));
+    return Boolean(row && row.user_id === userId && row.expires_at > Date.now());
+  }
+
+  function rememberDevice(res, userId) {
+    const token = crypto.randomBytes(32).toString('base64url');
+    const expiresAt = Date.now() + DEVICE_DAYS * 24 * 3600 * 1000;
+    db.prepare('INSERT INTO trusted_devices (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha256Hex(token), userId, expiresAt);
+    res.cookie(DEVICE_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: cookieSecure, path: '/', expires: new Date(expiresAt) });
+  }
+
+  // Starts set-up: a new secret, shown as a QR code and as text for manual entry.
+  router.post('/auth/2fa/setup', async (req, res) => {
+    const user = db.prepare('SELECT email, totp_enabled FROM users WHERE id = ?').get(req.user.id);
+    if (user.totp_enabled) throw badRequest('Two-factor sign-in is already on. Turn it off first to set it up again.');
+    const secret = newSecret();
+    db.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').run(vault.sealText(secret), req.user.id);
+    const uri = otpauthUri(secret, user.email);
+    const qr = await QRCode.toString(uri, { type: 'svg', margin: 1, width: 220 });
+    res.json({ secret, uri, qr });
+  });
+
+  // Confirms set-up with a code from the app. Two-factor sign-in only turns on after this.
+  router.post('/auth/2fa/enable', (req, res) => {
+    const user = db.prepare('SELECT totp_secret, totp_enabled FROM users WHERE id = ?').get(req.user.id);
+    if (user.totp_enabled) throw badRequest('Two-factor sign-in is already on.');
+    if (!user.totp_secret) throw badRequest('Start the set-up first.');
+    const step = matchStep(vault.openText(user.totp_secret), req.body?.code, 0);
+    if (step === null) throw badRequest('That code is not right. Check the code in your authenticator app and try again.');
+    db.prepare('UPDATE users SET totp_enabled = 1, totp_last_step = ? WHERE id = ?').run(step, req.user.id);
+    audit.record(req.user, 'auth.2fa_on');
+    res.json({ enabled: true });
+  });
+
+  // Turning it off needs the password, so a left-open session cannot switch it off.
+  router.post('/auth/2fa/disable', (req, res) => {
+    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    if (!verifyPassword(typeof req.body?.password === 'string' ? req.body.password : '', row.password_hash)) {
+      throw badRequest('That password is not right.');
+    }
+    db.prepare("UPDATE users SET totp_enabled = 0, totp_secret = '', totp_last_step = 0 WHERE id = ?").run(req.user.id);
+    db.prepare('DELETE FROM trusted_devices WHERE user_id = ?').run(req.user.id);
+    audit.record(req.user, 'auth.2fa_off');
+    res.json({ enabled: false });
+  });
+
+  // ---- Profile -------------------------------------------------------------------
+
+  router.patch('/auth/profile', (req, res) => {
+    for (const field of ['first_name', 'last_name', 'phone', 'organisation']) {
+      if (req.body?.[field] === undefined) continue;
+      const value = typeof req.body[field] === 'string' ? req.body[field].replace(/[\u0000-\u001f]/g, '').trim().slice(0, 100) : '';
+      db.prepare(`UPDATE users SET ${field} = ? WHERE id = ?`).run(value, req.user.id);
+    }
+    audit.record(req.user, 'auth.profile');
+    res.json(db.prepare('SELECT first_name, last_name, phone, organisation FROM users WHERE id = ?').get(req.user.id));
+  });
+
+  // ---- Backups (super admin) -----------------------------------------------------
+
+  const backupUpload = multer({
+    storage: multer.diskStorage({ destination: incomingDir, filename: (_req, _file, cb) => cb(null, crypto.randomUUID()) }),
+    limits: { fileSize: 4 * 1024 * 1024 * 1024, files: 1 },
+  });
+  const safeId = (value) => {
+    const id = String(value ?? '');
+    if (!/^[\w.-]+$/.test(id)) throw badRequest('Invalid backup id');
+    return id;
+  };
+
+  router.use('/admin/backups', requirePermission('system:manage'));
+
+  router.get('/admin/backups', (_req, res) => {
+    res.json({ schedule: backups.schedule(), backups: backups.list(), modes: MODES });
+  });
+
+  router.put('/admin/backups/schedule', (req, res) => {
+    try {
+      res.json(backups.saveSchedule(req.body ?? {}));
+    } catch (err) {
+      throw badRequest(err.message);
+    }
+  });
+
+  router.post('/admin/backups', (req, res) => {
+    const meta = backups.create('manual');
+    audit.record(req.user, 'backup.create', { name: meta.id, detail: `${meta.files} files` });
+    res.status(201).json(meta);
+  });
+
+  router.get('/admin/backups/:id/download', (req, res, next) => {
+    const id = safeId(req.params.id);
+    if (!backups.readMeta(id)) throw notFound('Backup not found');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="docukaksh-backup-${id}.zip"`);
+    res.setHeader('Cache-Control', 'no-store');
+    audit.record(req.user, 'backup.download', { name: id });
+    backups.writeZip(id, res).catch(next);
+  });
+
+  // Restoring replaces the data. The current data is moved aside, and the app restarts to apply it.
+  router.post('/admin/backups/:id/restore', (req, res) => {
+    const id = safeId(req.params.id);
+    if (req.body?.confirm !== 'RESTORE') throw badRequest('Type RESTORE to confirm.');
+    try {
+      backups.stageRestore(id);
+    } catch (err) {
+      throw notFound(err.message);
+    }
+    audit.record(req.user, 'backup.restore', { name: id, detail: 'restart requested' });
+    res.json({ restartRequired: true });
+    setTimeout(requestRestart, 800);
+  });
+
+  router.delete('/admin/backups/:id', (req, res) => {
+    const id = safeId(req.params.id);
+    try {
+      backups.remove(id);
+    } catch (err) {
+      throw notFound(err.message);
+    }
+    audit.record(req.user, 'backup.delete', { name: id });
+    res.status(204).end();
+  });
+
+  router.post('/admin/backups/upload', backupUpload.single('file'), (req, res) => {
+    const file = req.file;
+    if (!file) throw badRequest('Choose a backup file (.zip)');
+    try {
+      const meta = backups.importZip(fs.readFileSync(file.path));
+      audit.record(req.user, 'backup.upload', { name: meta.id });
+      res.status(201).json(meta);
+    } finally {
+      fs.rmSync(file.path, { force: true });
+    }
+  });
 
   // ---- Errors -----------------------------------------------------------------
 

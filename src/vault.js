@@ -123,6 +123,21 @@ export function createVault(key) {
   }
 
   return {
+    // Small secrets kept in the database (such as two-factor keys): AES-256-GCM, base64 text.
+    sealText(plain) {
+      const iv = crypto.randomBytes(12);
+      const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+      const body = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+      return Buffer.concat([iv, cipher.getAuthTag(), body]).toString('base64');
+    },
+
+    openText(sealed) {
+      const data = Buffer.from(sealed, 'base64');
+      const decipher = crypto.createDecipheriv('aes-256-gcm', key, data.subarray(0, 12));
+      decipher.setAuthTag(data.subarray(12, 28));
+      return Buffer.concat([decipher.update(data.subarray(28)), decipher.final()]).toString('utf8');
+    },
+
     async encryptFile(srcPath, destPath) {
       await pipeline(fs.createReadStream(srcPath), new Encrypt(), fs.createWriteStream(destPath, { mode: 0o600 }));
     },

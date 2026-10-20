@@ -1,3 +1,5 @@
+import { t, setLanguage, applyTranslations, LANGUAGES } from './i18n.js';
+
 // ---- Constants ----------------------------------------------------------------
 
 const THEMES = [
@@ -17,6 +19,7 @@ const THEMES = [
   { id: 'everforest-light', label: 'Everforest Light' },
   { id: 'ayu-dark', label: 'Ayu Dark' },
   { id: 'material-ocean', label: 'Material Ocean' },
+  { id: 'lime', label: 'Lime' },
 ];
 
 // Folder icons: 24-unit outline drawings. The ids must match src/icons.js.
@@ -79,6 +82,8 @@ const state = {
   retention: 30,
   auditFilters: {},
   pending: 0,
+  page: 1,
+  pageSize: 50,
 };
 
 let renderToken = 0;
@@ -190,6 +195,8 @@ function applyPrefs(prefs) {
   root.dataset.contrast = prefs.contrast ?? 'normal';
   root.dataset.density = prefs.density ?? 'comfortable';
   applyAccent(prefs);
+  setLanguage(prefs.language ?? 'en');
+  applyTranslations();
 }
 
 // Custom accent colours override the theme. Empty values fall back to the theme.
@@ -242,6 +249,7 @@ const hashFor = () => {
 // Navigation lives in the URL hash, so reload and the back button both work.
 function navigate(hash) {
   closeDrawer();
+  state.page = 1;
   state.query = '';
   $('#search').value = '';
   if (location.hash === hash) return render();
@@ -467,16 +475,20 @@ const ACCENT_PRESETS = [
   ['#4f46e5', '#818cf8'], ['#0d9488', '#5eead4'], ['#dc2626', '#fb7185'], ['#d97706', '#fbbf24'],
   ['#16a34a', '#86efac'], ['#2563eb', '#7dd3fc'], ['#9333ea', '#c084fc'], ['#db2777', '#f9a8d4'],
 ];
-const ADMIN_TABS = [['users', 'Users'], ['recovery', 'Recovery requests'], ['audit', 'Audit log'], ['system', 'System']];
+const ADMIN_TABS = [['users', 'Users'], ['recovery', 'Recovery requests'], ['audit', 'Audit log'], ['system', 'System'], ['backups', 'Backups']];
 const ACCENT_FALLBACK = '#4f46e5';
 
 let settingsCtx = null; // { section, sub, root, close } while the Settings window is open
 let adminToken = 0;
 
 function settingsSections() {
-  const sections = [['appearance', 'Appearance'], ['accessibility', 'Accessibility'], ['account', 'Account']];
-  if (isAdmin()) sections.push(['admin', 'Administration']);
-  sections.push(['about', 'About']);
+  const sections = [
+    ['appearance', t('appearance')],
+    ['accessibility', t('accessibility')],
+    ['account', t('account')],
+  ];
+  if (isAdmin()) sections.push(['admin', t('administration')]);
+  sections.push(['about', t('about')]);
   return sections;
 }
 
@@ -532,13 +544,12 @@ function settingsSectionHtml(id) {
     const primary = user.accent_primary || currentAccent();
     const secondary = user.accent_secondary || primary;
     return `
-      <h2>Appearance</h2>
-      <p class="muted small">Day and Night are the defaults. Your choices are saved to your account.</p>
-      <h3>Theme</h3>
-      <div class="theme-grid" role="group" aria-label="Theme">
-        ${THEMES.map((t) => `
-          <button class="theme-option${t.id === user.theme ? ' selected' : ''}" type="button" data-pref="theme" data-value="${t.id}" aria-pressed="${t.id === user.theme}">
-            <span class="swatch" data-t="${t.id}"></span>${esc(t.label)}
+      <h2>${t('appearance')}</h2>
+      <h3>${t('theme')}</h3>
+      <div class="theme-grid" role="group" aria-label="${t('theme')}">
+        ${THEMES.map((th) => `
+          <button class="theme-option${th.id === user.theme ? ' selected' : ''}" type="button" data-pref="theme" data-value="${th.id}" aria-pressed="${th.id === user.theme}">
+            <span class="swatch" data-t="${th.id}"></span>${esc(th.label)}
           </button>`).join('')}
       </div>
       <h3>Accent colours</h3>
@@ -551,45 +562,74 @@ function settingsSectionHtml(id) {
       <div class="accent-presets" role="group" aria-label="Accent presets">
         ${ACCENT_PRESETS.map(([a, b]) => `<button class="accent-preset" type="button" data-accent-preset="${a},${b}" aria-label="Preset ${a} and ${b}"><span class="sw-p" data-bg="${a}"></span><span class="sw-s" data-bg="${b}"></span></button>`).join('')}
       </div>
-      <h3>Density</h3>
-      <div class="choice-row">${choiceButtons('density', [{ id: 'comfortable', label: 'Comfortable' }, { id: 'compact', label: 'Compact' }], user.density)}</div>`;
+      <h3>${t('density')}</h3>
+      <div class="choice-row">${choiceButtons('density', [{ id: 'comfortable', label: t('comfortable') }, { id: 'compact', label: t('compact') }], user.density)}</div>
+      <h3>${t('items_per_page')}</h3>
+      <div class="choice-row">${choiceButtons('page_size', [10, 25, 50, 100, 200].map((n) => ({ id: n, label: String(n) })), user.page_size)}</div>
+      <p class="muted small">Long folders are split into pages of this size.</p>`;
   }
   if (id === 'accessibility') {
     return `
-      <h2>Accessibility</h2>
+      <h2>${t('accessibility')}</h2>
       <p class="muted small">Make text bigger, or improve contrast, across the whole app.</p>
-      <h3>Text size</h3>
-      <div class="choice-row">${choiceButtons('text_size', [{ id: 'normal', label: 'Normal' }, { id: 'large', label: 'Large' }, { id: 'xlarge', label: 'Extra large' }], user.text_size)}</div>
-      <h3>Contrast</h3>
-      <div class="choice-row">${choiceButtons('contrast', [{ id: 'normal', label: 'Normal' }, { id: 'high', label: 'High contrast' }], user.contrast)}</div>`;
-  }
-  if (id === 'admin') {
-    return `
-      <h2>Administration</h2>
-      <p class="muted small">Tools for the super admin. The recycle bin is in the sidebar.</p>
-      <div class="admin-tabs" role="tablist" aria-label="Administration">
-        ${ADMIN_TABS.map(([key, label]) => `<button type="button" role="tab" data-sub="${key}" aria-selected="${settingsCtx.sub === key}" class="${settingsCtx.sub === key ? 'active' : ''}">${label}${key === 'recovery' && state.pending ? ` <span class="count">${state.pending}</span>` : ''}</button>`).join('')}
-      </div>
-      <div id="admin-panel" class="admin-panel"><p class="muted">Loading…</p></div>`;
+      <h3>${t('text_size')}</h3>
+      <div class="choice-row">${choiceButtons('text_size', [{ id: 'normal', label: t('normal') }, { id: 'large', label: t('large') }, { id: 'xlarge', label: t('extra_large') }], user.text_size)}</div>
+      <h3>${t('contrast')}</h3>
+      <div class="choice-row">${choiceButtons('contrast', [{ id: 'normal', label: t('normal') }, { id: 'high', label: t('high_contrast') }], user.contrast)}</div>`;
   }
   if (id === 'account') {
     return `
-      <h2>Account</h2>
+      <h2>${t('account')}</h2>
       <p class="muted small">${esc(user.email)} · ${esc(ROLE_LABELS[user.role] ?? user.role)}</p>
+
+      <h3>${t('profile')}</h3>
+      <form class="profile-form" data-profile-form>
+        <label class="field"><span>${t('first_name')}</span><input name="first_name" maxlength="100" value="${esc(user.first_name ?? '')}"></label>
+        <label class="field"><span>${t('last_name')}</span><input name="last_name" maxlength="100" value="${esc(user.last_name ?? '')}"></label>
+        <label class="field"><span>${t('phone')}</span><input name="phone" maxlength="100" type="tel" value="${esc(user.phone ?? '')}"></label>
+        <label class="field"><span>${t('organisation')}</span><input name="organisation" maxlength="100" value="${esc(user.organisation ?? '')}"></label>
+        <div class="settings-row"><button class="btn primary" type="submit">${t('save_profile')}</button></div>
+      </form>
+
+      <h3>${t('language')}</h3>
+      <label class="field"><span>${t('language')}</span>
+        <select data-language>
+          ${LANGUAGES.map((l) => `<option value="${l.code}"${l.code === (user.language ?? 'en') ? ' selected' : ''}>${esc(l.name)}</option>`).join('')}
+        </select>
+      </label>
+
+      <h3>${t('two_factor')}</h3>
+      <p class="muted small">${user.twoFactor ? t('two_factor_on') : t('two_factor_off')}</p>
       <div class="settings-row">
-        <button class="btn" type="button" data-change-password>Change password</button>
-        <button class="btn danger" type="button" data-logout>Sign out</button>
+        ${user.twoFactor
+          ? '<button class="btn danger" type="button" data-2fa="off">' + t('turn_off') + '</button>'
+          : '<button class="btn primary" type="button" data-2fa="on">' + t('turn_on') + '</button>'}
+      </div>
+
+      <h3>${t('change_password')}</h3>
+      <div class="settings-row">
+        <button class="btn" type="button" data-change-password>${t('change_password')}</button>
+        <button class="btn danger" type="button" data-logout>${t('sign_out')}</button>
       </div>`;
+  }
+  if (id === 'admin') {
+    return `
+      <h2>${t('administration')}</h2>
+      <p class="muted small">Tools for the super admin. The recycle bin is in the sidebar.</p>
+      <div class="admin-tabs" role="tablist" aria-label="${t('administration')}">
+        ${ADMIN_TABS.map(([key, label]) => `<button type="button" role="tab" data-sub="${key}" aria-selected="${settingsCtx.sub === key}" class="${settingsCtx.sub === key ? 'active' : ''}">${esc(label)}${key === 'recovery' && state.pending ? ` <span class="count">${state.pending}</span>` : ''}</button>`).join('')}
+      </div>
+      <div id="admin-panel" class="admin-panel"><p class="muted">Loading…</p></div>`;
   }
   return `
     <div class="about">
-      <h2>About DocuKaksh</h2>
+      <h2>${t('about')} DocuKaksh</h2>
       <p class="muted small">A self-hosted place for family and office documents.</p>
       <dl>
         <dt>Version</dt><dd>${esc(state.version || '—')}</dd>
         <dt>Encryption</dt><dd>Every uploaded file is encrypted with AES-256-GCM before it is stored.</dd>
         <dt>Keys</dt><dd>The encryption key and all settings are read from the .env file on the server.</dd>
-        <dt>Data</dt><dd>Stored in the data folder set by DATA_HOST_DIR (database, encrypted files, previews).</dd>
+        <dt>Data</dt><dd>Stored in the data folder set by DATA_HOST_DIR (database, encrypted files, previews, backups).</dd>
       </dl>
     </div>`;
 }
@@ -619,7 +659,10 @@ function onSettingsBodyClick(e) {
     return renderSettingsBody();
   }
   const pref = e.target.closest('[data-pref]');
-  if (pref) return savePreference({ [pref.dataset.pref]: pref.dataset.value });
+  if (pref) {
+    const value = pref.dataset.pref === 'page_size' ? Number(pref.dataset.value) : pref.dataset.value;
+    return savePreference({ [pref.dataset.pref]: value });
+  }
   const preset = e.target.closest('[data-accent-preset]');
   if (preset) {
     const [primary, secondary] = preset.dataset.accentPreset.split(',');
@@ -627,6 +670,8 @@ function onSettingsBodyClick(e) {
   }
   if (e.target.closest('[data-accent-reset]')) return savePreference({ accent_primary: '', accent_secondary: '' });
   if (e.target.closest('[data-admin-action="new-user"]')) return newUser();
+  const twoFactor = e.target.closest('[data-2fa]');
+  if (twoFactor) return twoFactor.dataset['2fa'] === 'on' ? startTwoFactorSetup() : disableTwoFactor();
   if (e.target.closest('[data-change-password]')) {
     settingsCtx.close();
     return changePassword();
@@ -637,9 +682,12 @@ function onSettingsBodyClick(e) {
   }
   const kebab = e.target.closest('[data-kebab]');
   if (kebab) return openRowMenu(kebab.closest('.row[data-kind]'));
+  const backupButton = e.target.closest('[data-backup]');
+  if (backupButton) return backupAction(backupButton.dataset.backup, backupButton.dataset.id);
 }
 
 function onSettingsBodyChange(e) {
+  if (e.target.matches('[data-language]')) return savePreference({ language: e.target.value });
   if (!e.target.matches('[data-accent-input]')) return;
   const body = settingsCtx.root.querySelector('#settings-body');
   savePreference({
@@ -648,6 +696,22 @@ function onSettingsBodyChange(e) {
   });
 }
 
+// Profile form (submitted by the form, not by a click).
+document.addEventListener('submit', async (e) => {
+  if (!e.target.matches('[data-profile-form]')) return;
+  e.preventDefault();
+  try {
+    const body = Object.fromEntries(new FormData(e.target));
+    const saved = await api('/auth/profile', { method: 'PATCH', body });
+    Object.assign(state.user, saved);
+    $('#account-email').textContent = state.user.email;
+    toast('Profile saved');
+    renderSettingsBody();
+  } catch (err) {
+    toast(err.message, true);
+  }
+});
+
 // ---- Administration panels (shown inside Settings) --------------------------------------
 
 async function renderAdminPanel() {
@@ -655,7 +719,7 @@ async function renderAdminPanel() {
   const panel = settingsCtx.root.querySelector('#admin-panel');
   if (!panel) return;
   const token = ++adminToken;
-  const builders = { users: adminUsersHtml, recovery: adminRecoveryHtml, audit: adminAuditHtml, system: adminSystemHtml };
+  const builders = { users: adminUsersHtml, recovery: adminRecoveryHtml, audit: adminAuditHtml, system: adminSystemHtml, backups: adminBackupsHtml };
   try {
     const html = await builders[settingsCtx.sub]();
     if (token !== adminToken || !settingsCtx) return;
@@ -849,6 +913,7 @@ async function boot() {
   state.version = status.version ?? '';
   if (!status.user) return status.setupRequired ? showSetup() : showLogin();
   state.user = status.user;
+  state.pageSize = status.user.page_size || 50;
   applyPrefs(status.user);
   if (status.user.mustChangePassword) return showForcedChange();
 
@@ -897,7 +962,7 @@ function showLogin() {
       <p class="error" role="alert"></p>
       <div class="auth-links"><button class="link-btn" type="button" data-forgot>Forgot password?</button></div>
     </form>`);
-  submitForm(el.querySelector('form'), '/auth/login', () => boot());
+  wireLogin(el.querySelector('form'));
   el.querySelector('[data-forgot]').addEventListener('click', showRecovery);
 }
 
@@ -1200,7 +1265,7 @@ function rowHtml({ kind, id, icon, iconClass = '', label, meta, col1 = '', col2 
     <div class="row${selected ? ' selected' : ''}" data-kind="${kind}" data-id="${id}" tabindex="0" ${draggable ? 'draggable="true"' : ''} ${attrs} title="${esc(title)}">
       <input class="pick" type="checkbox" aria-label="Select ${esc(label)}" ${selected ? 'checked' : ''} data-pick>
       <span class="name">
-        <span class="icon ${iconClass}">${icon}</span>
+        <span class="icon ${iconClass || (kind === 'file' ? extClass(label) : '')}">${icon}</span>
         <span class="text"><span class="label">${esc(label)}</span><span class="meta">${meta}</span>${tagsHtml(tags)}</span>
       </span>
       <span class="col">${col1}</span>
@@ -1231,47 +1296,6 @@ function sortItems(folders, files) {
       : byName;
   const sortList = (list) => [...list].sort((a, b) => sign * compare(a, b) || byName(a, b));
   return { folders: sortList(folders), files: sortList(files) };
-}
-
-function renderBrowse(data) {
-  const { folders, files } = data;
-  const content = $('#content');
-  const total = folders.length + files.length;
-  $('#item-count').textContent = `${total} item${total === 1 ? '' : 's'}`;
-  if (!total) {
-    content.innerHTML = `
-      <div class="empty">
-        <h2>This folder is empty</h2>
-        <p class="muted">${canWrite() ? 'Upload files, or create a subfolder to keep things organised.' : 'Nothing has been added here yet.'}</p>
-      </div>`;
-    return;
-  }
-  const sorted = sortItems(folders, files);
-  const folderRows = sorted.folders.map((f) => rowHtml({
-    kind: 'folder',
-    id: f.id,
-    icon: iconSvg(f.icon),
-    iconClass: 'folder',
-    label: f.name,
-    meta: `Folder · ${esc(formatDate(f.created_at))}${f.description ? ` · ${esc(f.description.slice(0, 60))}` : ''}`,
-    col1: 'Folder',
-    col2: esc(formatDate(f.created_at)),
-    draggable: canWrite(),
-    title: f.description || '',
-  })).join('');
-  const fileRows = sorted.files.map((f) => rowHtml({
-    kind: 'file',
-    id: f.id,
-    icon: extBadge(f.name),
-    label: f.name,
-    meta: `${esc(formatSize(f.size))} · ${esc(formatDate(f.created_at))}${f.expires_on ? ` · expires ${esc(dayOnly(f.expires_on))}` : ''}`,
-    col1: esc(formatSize(f.size)),
-    col2: esc(formatDate(f.created_at)),
-    tags: f.tags,
-    draggable: canWrite(),
-  })).join('');
-  content.innerHTML = `<div class="list">${headerHtml([['name', 'Name'], ['size', 'Size'], ['added', 'Added']])}${folderRows}${fileRows}</div>`;
-  content.classList.toggle('select-mode', state.selecting);
 }
 
 function renderEmpty() {
@@ -2370,6 +2394,7 @@ window.addEventListener('hashchange', () => {
   if (ADMIN_VIEWS.includes(state.view) && !isAdmin()) state.view = 'home';
   state.selected.clear();
   state.selecting = false;
+  state.page = 1;
   render();
 });
 
@@ -2545,6 +2570,346 @@ api('/shared').then((items) => {
   badge.textContent = items.length || '';
   badge.classList.toggle('hidden', !items.length);
 }).catch(() => {});
+
+// ---- Sign-in with a code from the authenticator app ----------------------------------------
+
+function wireLogin(form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = form.querySelector('.error');
+    errorEl.textContent = '';
+    try {
+      const data = await api('/auth/login', { method: 'POST', body: Object.fromEntries(new FormData(form)) });
+      if (data.totpRequired) return showTotpStep(data.pendingToken);
+      await boot();
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+  });
+}
+
+function showTotpStep(pendingToken) {
+  const el = showAuthCard(`
+    <form class="auth-card">
+      ${brandHtml()}
+      <h1>${t('two_factor')}</h1>
+      <p class="muted">${t('enter_code')}</p>
+      <label class="field"><span>${t('code')}</span><input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+      <label class="check-row"><input type="checkbox" name="remember"> <span>${t('trust_browser')}</span></label>
+      <button class="btn primary wide" type="submit">${t('confirm')}</button>
+      <p class="error" role="alert"></p>
+      <div class="auth-links"><button class="link-btn" type="button" data-back>${t('sign_in')}</button></div>
+    </form>`);
+  el.querySelector('[data-back]').addEventListener('click', showLogin);
+  el.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const errorEl = form.querySelector('.error');
+    try {
+      await api('/auth/login/totp', {
+        method: 'POST',
+        body: { pendingToken, code: form.code.value, remember: form.remember.checked },
+      });
+      await boot();
+    } catch (err) {
+      errorEl.textContent = err.message;
+    }
+  });
+}
+
+// ---- Two-factor set-up and turn-off (Settings → Account) ------------------------------------
+
+async function startTwoFactorSetup() {
+  let setup;
+  try {
+    setup = await api('/auth/2fa/setup', { method: 'POST' });
+  } catch (err) {
+    return toast(err.message, true);
+  }
+  await openOverlay(`
+    <div class="modal" role="dialog" aria-modal="true" aria-label="${t('two_factor')}">
+      <h2>${t('two_factor')}</h2>
+      <p class="muted small">${t('scan_code')}</p>
+      <div class="qr-box">${setup.qr}</div>
+      <p class="muted small">${t('or_enter')}</p>
+      <div class="copy-box"><span>${esc(setup.secret)}</span></div>
+      <form data-2fa-enable>
+        <label class="field"><span>${t('enter_code')}</span><input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required></label>
+        <div class="modal-actions">
+          <button type="button" class="btn" data-close>${t('cancel')}</button>
+          <button class="btn primary">${t('confirm')}</button>
+        </div>
+      </form>
+    </div>`, (root, close) => {
+    root.querySelector('[data-2fa-enable]').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        await api('/auth/2fa/enable', { method: 'POST', body: { code: e.currentTarget.code.value } });
+        state.user.twoFactor = true;
+        toast(t('two_factor_on'));
+        close();
+        renderSettingsBody();
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+  });
+}
+
+async function disableTwoFactor() {
+  const result = await formModal({
+    title: t('turn_off'),
+    message: 'Enter your password to turn off two-factor sign-in.',
+    fields: [{ name: 'password', label: t('password'), type: 'password' }],
+    submit: t('turn_off'),
+    danger: true,
+  });
+  if (!result) return;
+  try {
+    await api('/auth/2fa/disable', { method: 'POST', body: result });
+    state.user.twoFactor = false;
+    toast(t('two_factor_off'));
+    renderSettingsBody();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// ---- Backups (Settings → Administration → Backups) -------------------------------------------
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+async function adminBackupsHtml() {
+  const data = await api('/admin/backups');
+  const s = data.schedule;
+  const modeOption = (value, label) => `<option value="${value}"${s.mode === value ? ' selected' : ''}>${esc(label)}</option>`;
+  const list = data.backups.length
+    ? data.backups.map((b) => `
+        <div class="backup-item">
+          <div class="grow">
+            <strong>${esc(formatDateTime(b.createdAt))}</strong>
+            <div class="muted small">${esc(b.label)} · ${b.files} files · ${esc(formatSize(b.bytes))}</div>
+          </div>
+          <button class="btn small" type="button" data-backup="download" data-id="${esc(b.id)}">${t('download')}</button>
+          <button class="btn small" type="button" data-backup="restore" data-id="${esc(b.id)}">${t('restore')}</button>
+          <button class="btn small danger" type="button" data-backup="delete" data-id="${esc(b.id)}">${t('delete')}</button>
+        </div>`).join('')
+    : '<p class="muted small">No backups yet.</p>';
+  return `
+    <div class="admin-head">
+      <span class="muted small">${s.lastRun ? `Last backup: ${esc(formatDateTime(s.lastRun))}` : 'No backup has run yet.'}</span>
+      <span class="grow"></span>
+      <button class="btn primary small" type="button" data-backup="now">${t('back_up_now')}</button>
+    </div>
+
+    <h3>${t('schedule')}</h3>
+    <form class="profile-form" data-backup-form>
+      <label class="field"><span>${t('schedule')}</span>
+        <select name="mode">${modeOption('manual', t('manual'))}${modeOption('daily', t('daily'))}${modeOption('weekly', t('weekly'))}</select>
+      </label>
+      <label class="field"><span>${t('at_time')}</span><input name="time" type="time" value="${esc(s.time)}" required></label>
+      <label class="field"><span>Day (weekly only)</span>
+        <select name="weekday">${WEEKDAYS.map((d, i) => `<option value="${i}"${s.weekday === i ? ' selected' : ''}>${d}</option>`).join('')}</select>
+      </label>
+      <label class="field"><span>${t('keep_last')} (backups)</span><input name="keep" type="number" min="1" max="365" value="${s.keep}" required></label>
+      <div class="settings-row"><button class="btn primary" type="submit">${t('save')}</button></div>
+    </form>
+    <p class="muted small">Backups are kept on this computer in the backups folder (set BACKUP_DIR in .env to use another drive). Unchanged files are shared between backups, so each one takes only the space of what changed.</p>
+
+    <h3>Backups</h3>
+    <div class="backup-list">${list}</div>
+
+    <h3>${t('upload_backup')}</h3>
+    <form class="profile-form" data-backup-upload>
+      <label class="field"><span>Backup file (.zip)</span><input type="file" name="file" accept=".zip,application/zip" required></label>
+      <div class="settings-row"><button class="btn danger" type="submit">${t('upload_backup')}</button></div>
+    </form>`;
+}
+
+async function backupAction(action, id) {
+  try {
+    if (action === 'now') {
+      const meta = await api('/admin/backups', { method: 'POST' });
+      toast(`Backup created (${meta.files} files)`);
+      return renderSettingsBody();
+    }
+    if (action === 'download') {
+      location.href = `/api/admin/backups/${encodeURIComponent(id)}/download`;
+      return;
+    }
+    if (action === 'delete') {
+      const result = await formModal({
+        title: 'Delete this backup?',
+        message: 'The backup is removed. Your live data is not affected.',
+        submit: t('delete'),
+        danger: true,
+      });
+      if (!result) return;
+      await api(`/admin/backups/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      toast('Backup deleted');
+      return renderSettingsBody();
+    }
+    if (action === 'restore') {
+      const result = await formModal({
+        title: 'Restore this backup?',
+        message: 'Everything added or changed since this backup is replaced. The current data is kept in a folder named before-restore, and the app restarts to apply the restore.',
+        fields: [{ name: 'confirm', label: t('confirm_restore'), placeholder: 'RESTORE' }],
+        submit: t('restore'),
+        danger: true,
+      });
+      if (!result) return;
+      await api(`/admin/backups/${encodeURIComponent(id)}/restore`, { method: 'POST', body: { confirm: result.confirm } });
+      return showRestarting();
+    }
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+function showRestarting() {
+  return openOverlay(`
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Restarting">
+      <h2>Restoring…</h2>
+      <p class="muted">The app is restarting to apply the backup. This takes a few seconds. Then reload this page.</p>
+      <div class="modal-actions"><button class="btn primary" type="button" onclick="location.reload()">Reload</button></div>
+    </div>`);
+}
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.matches('[data-backup-form]')) {
+    e.preventDefault();
+    const form = e.target;
+    try {
+      await api('/admin/backups/schedule', {
+        method: 'PUT',
+        body: { mode: form.mode.value, time: form.time.value, weekday: Number(form.weekday.value), keep: Number(form.keep.value) },
+      });
+      toast('Schedule saved');
+      renderSettingsBody();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }
+  if (e.target.matches('[data-backup-upload]')) {
+    e.preventDefault();
+    const form = e.target;
+    const file = form.file.files[0];
+    if (!file) return toast('Choose a backup file first', true);
+    const body = new FormData();
+    body.append('file', file);
+    try {
+      const res = await fetch('/api/admin/backups/upload', { method: 'POST', body, credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      const confirmed = await formModal({
+        title: 'Restore the uploaded backup?',
+        message: 'Everything added or changed since that backup is replaced. The current data is kept aside, and the app restarts.',
+        fields: [{ name: 'confirm', label: t('confirm_restore'), placeholder: 'RESTORE' }],
+        submit: t('restore'),
+        danger: true,
+      });
+      if (!confirmed) return renderSettingsBody();
+      await api(`/admin/backups/${encodeURIComponent(data.id)}/restore`, { method: 'POST', body: { confirm: confirmed.confirm } });
+      showRestarting();
+    } catch (err) {
+      toast(err.message, true);
+    }
+  }
+});
+
+// ---- File type colours --------------------------------------------------------------------------
+
+const EXT_CLASS = {
+  pdf: 'ext-pdf', png: 'ext-image', jpg: 'ext-image', jpeg: 'ext-image', gif: 'ext-image', webp: 'ext-image',
+  heic: 'ext-image', heif: 'ext-image', svg: 'ext-image', bmp: 'ext-image', avif: 'ext-image',
+  csv: 'ext-sheet', tsv: 'ext-sheet', xlsx: 'ext-sheet', xlsm: 'ext-sheet', xls: 'ext-sheet', ods: 'ext-sheet',
+  docx: 'ext-doc', doc: 'ext-doc', rtf: 'ext-doc', odt: 'ext-doc',
+  pptx: 'ext-slides', ppt: 'ext-slides', odp: 'ext-slides',
+  md: 'ext-text', txt: 'ext-text', log: 'ext-text',
+  zip: 'ext-archive', rar: 'ext-archive', '7z': 'ext-archive', tar: 'ext-archive', gz: 'ext-archive',
+  mp3: 'ext-audio', wav: 'ext-audio', m4a: 'ext-audio', flac: 'ext-audio', ogg: 'ext-audio',
+  mp4: 'ext-video', mov: 'ext-video', webm: 'ext-video', mkv: 'ext-video',
+  js: 'ext-code', ts: 'ext-code', py: 'ext-code', json: 'ext-code', html: 'ext-code', css: 'ext-code', xml: 'ext-code',
+};
+const extClass = (name) => EXT_CLASS[(name.split('.').pop() || '').toLowerCase()] ?? 'ext-other';
+
+// ---- Paginated file list -----------------------------------------------------------------------
+
+function renderBrowse(data) {
+  const { folders, files } = data;
+  const content = $('#content');
+  const total = folders.length + files.length;
+  $('#item-count').textContent = `${total} item${total === 1 ? '' : 's'}`;
+  if (!total) {
+    $('#pager').classList.add('hidden');
+    content.innerHTML = `
+      <div class="empty">
+        <h2>${t('empty_folder')}</h2>
+        <p class="muted">${canWrite() ? 'Upload files, or create a subfolder to keep things organised.' : 'Nothing has been added here yet.'}</p>
+      </div>`;
+    return;
+  }
+  const sorted = sortItems(folders, files);
+  const all = [...sorted.folders.map((item) => ({ kind: 'folder', item })), ...sorted.files.map((item) => ({ kind: 'file', item }))];
+  const size = state.pageSize || 50;
+  const pages = Math.max(1, Math.ceil(all.length / size));
+  state.page = Math.min(Math.max(1, state.page), pages);
+  const visible = all.slice((state.page - 1) * size, state.page * size);
+
+  const rows = visible.map(({ kind, item }) => {
+    if (kind === 'folder') {
+      return rowHtml({
+        kind: 'folder',
+        id: item.id,
+        icon: iconSvg(item.icon),
+        iconClass: 'folder',
+        label: item.name,
+        meta: `Folder · ${esc(formatDate(item.created_at))}${item.description ? ` · ${esc(item.description.slice(0, 60))}` : ''}`,
+        col1: 'Folder',
+        col2: esc(formatDate(item.created_at)),
+        draggable: canWrite(),
+        title: item.description || '',
+      });
+    }
+    return rowHtml({
+      kind: 'file',
+      id: item.id,
+      icon: extBadge(item.name),
+      label: item.name,
+      meta: `${esc(formatSize(item.size))} · ${esc(formatDate(item.created_at))}${item.expires_on ? ` · expires ${esc(dayOnly(item.expires_on))}` : ''}`,
+      col1: esc(formatSize(item.size)),
+      col2: esc(formatDate(item.created_at)),
+      tags: item.tags,
+      draggable: canWrite(),
+    });
+  }).join('');
+  content.innerHTML = `<div class="list">${headerHtml([['name', 'Name'], ['size', 'Size'], ['added', 'Added']])}${rows}</div>`;
+  content.classList.toggle('select-mode', state.selecting);
+  renderPager(total, pages, size);
+}
+
+function renderPager(total, pages, size) {
+  const pager = $('#pager');
+  if (pages <= 1) {
+    pager.classList.add('hidden');
+    pager.innerHTML = '';
+    return;
+  }
+  const from = (state.page - 1) * size + 1;
+  const to = Math.min(total, state.page * size);
+  pager.classList.remove('hidden');
+  pager.innerHTML = `
+    <button class="btn small" type="button" data-page="${state.page - 1}" ${state.page === 1 ? 'disabled' : ''}>${t('page_previous')}</button>
+    <span class="muted small">${t('page_of', { page: state.page, total: pages })} · ${t('showing', { from, to, total })}</span>
+    <button class="btn small" type="button" data-page="${state.page + 1}" ${state.page === pages ? 'disabled' : ''}>${t('page_next')}</button>`;
+}
+
+$('#pager').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-page]');
+  if (!button || button.disabled) return;
+  state.page = Number(button.dataset.page);
+  render();
+});
 
 // ---- Account menu, sidebar groups, sidebar width -----------------------------------
 

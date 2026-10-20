@@ -593,3 +593,80 @@ html[data-text="xlarge"] { zoom: 1.3; }
 .side-nav { position: relative; z-index: 1; margin-top: 6px; }
 .app.sidebar-collapsed .sidebar-head { min-height: 0; padding-bottom: 6px; }
 .app.sidebar-collapsed .side-nav { margin-top: 10px; }
+
+/* ==== Lime theme (inspired by the Papra app's colours) ============================== */
+
+:root[data-theme="lime"] {
+  --bg: #11140b; --surface: #181d10; --surface-2: #20271a; --text: #eef7d6; --muted: #a6b08a;
+  --border: #2e3a22; --accent: #d9ff7a; --accent-hover: #eaffa8; --accent-text: #1b2a06;
+  --danger: #ff7a7a; --focus: #d9ff7a; --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+.swatch[data-t="lime"] { background: linear-gradient(90deg, #11140b 50%, #d9ff7a 50%); }
+
+/* ==== File type colours ============================================================= */
+
+.icon.ext-pdf { background: color-mix(in srgb, #ef4444 16%, transparent); color: #dc2626; }
+.icon.ext-image { background: color-mix(in srgb, #0ea5e9 16%, transparent); color: #0284c7; }
+.icon.ext-sheet { background: color-mix(in srgb, #22c55e 16%, transparent); color: #15803d; }
+.icon.ext-doc { background: color-mix(in srgb, #3b82f6 16%, transparent); color: #1d4ed8; }
+.icon.ext-slides { background: color-mix(in srgb, #f97316 16%, transparent); color: #c2410c; }
+.icon.ext-text { background: color-mix(in srgb, #64748b 18%, transparent); color: #475569; }
+.icon.ext-archive { background: color-mix(in srgb, #eab308 18%, transparent); color: #a16207; }
+.icon.ext-audio { background: color-mix(in srgb, #a855f7 16%, transparent); color: #7e22ce; }
+.icon.ext-video { background: color-mix(in srgb, #ec4899 16%, transparent); color: #be185d; }
+.icon.ext-code { background: color-mix(in srgb, #14b8a6 16%, transparent); color: #0f766e; }
+.icon.ext-other { background: var(--surface-2); color: var(--muted); }
+:root[data-theme="night"] .icon.ext-doc, :root[data-theme="dracula"] .icon.ext-doc, :root[data-theme="nord"] .icon.ext-doc { color: #93c5fd; }
+:root[data-theme="night"] .icon.ext-pdf, :root[data-theme="dracula"] .icon.ext-pdf, :root[data-theme="nord"] .icon.ext-pdf { color: #fca5a5; }
+:root[data-theme="night"] .icon.ext-sheet, :root[data-theme="dracula"] .icon.ext-sheet, :root[data-theme="nord"] .icon.ext-sheet { color: #86efac; }
+:root[data-theme="night"] .icon.ext-image, :root[data-theme="dracula"] .icon.ext-image, :root[data-theme="nord"] .icon.ext-image { color: #7dd3fc; }
+:root[data-theme="night"] .icon.ext-slides, :root[data-theme="dracula"] .icon.ext-slides, :root[data-theme="nord"] .icon.ext-slides { color: #fdba74; }
+
+/* ==== Pager ============================================================================= */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 4px 0;
+}
+.pager.hidden { display: none; }
+
+/* ==== Backups, sign-in code, profile ====================================================== */
+
+.backup-list { display: grid; gap: 8px; margin: 8px 0 12px; }
+.backup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.backup-item .grow { min-width: 180px; }
+.profile-form { display: grid; gap: 0; max-width: 460px; }
+.check-row { display: flex; align-items: flex-start; gap: 10px; margin: 4px 0 14px; font-size: 14px; }
+.check-row input { margin-top: 3px; }
+.qr-box { display: grid; place-items: center; margin: 12px 0; padding: 14px; border-radius: 12px; background: #ffffff; }
+.qr-box svg { width: 220px; height: 220px; max-width: 100%; height: auto; }
+.settings-body .field select { min-height: 42px; }
+
+/* All form controls share the same look, whatever their input type. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]):not([type="range"]),
+select,
+textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+input[type="file"] { font: inherit; color: var(--text); }

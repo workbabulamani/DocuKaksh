@@ -24,18 +24,18 @@
       </div>
 
       <nav class="side-nav" aria-label="Main">
-        <button class="nav-item" type="button" data-nav="home" title="Home"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span class="side-label">Home</span></button>
-        <button class="nav-item" type="button" data-nav="shared" title="Shared with me"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/></svg></span><span class="side-label">Shared with me</span><span id="shared-count" class="count hidden"></span></button>
-        <button class="nav-item" type="button" data-nav="starred" title="Starred"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></span><span class="side-label">Starred</span></button>
-        <button id="nav-trash" class="nav-item hidden" type="button" data-nav="trash" title="Recycle bin"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span><span class="side-label">Recycle bin</span></button>
+        <button class="nav-item" type="button" data-nav="home" title="Home"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span class="side-label" data-i18n="home">Home</span></button>
+        <button class="nav-item" type="button" data-nav="shared" title="Shared with me"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/></svg></span><span class="side-label" data-i18n="shared">Shared with me</span><span id="shared-count" class="count hidden"></span></button>
+        <button class="nav-item" type="button" data-nav="starred" title="Starred"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></span><span class="side-label" data-i18n="starred">Starred</span></button>
+        <button id="nav-trash" class="nav-item hidden" type="button" data-nav="trash" title="Recycle bin"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span><span class="side-label" data-i18n="recycle_bin">Recycle bin</span></button>
       </nav>
 
       <section class="side-group persons-group" id="persons-group" data-group-box="persons">
         <div class="side-head">
           <button class="group-toggle" type="button" data-group="persons" aria-controls="persons-body" aria-expanded="true">
-            <span class="chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span><span class="side-label">Persons</span>
+            <span class="chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span><span class="side-label" data-i18n="persons">Persons</span>
           </button>
-          <button id="new-person" class="btn small side-label" type="button">+ New</button>
+          <button id="new-person" class="btn small side-label" type="button" data-i18n="new_person">+ New</button>
         </div>
         <div class="group-body" id="persons-body">
           <nav id="person-list" class="person-list" aria-label="Persons"></nav>
@@ -56,19 +56,19 @@
         <nav id="crumbs" class="crumbs" aria-label="Location"></nav>
         <div class="search-box">
           <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="search" class="search" type="search" placeholder="Search files or #tag" aria-label="Search files or #tag">
+          <input id="search" class="search" type="search" data-i18n-placeholder="search_placeholder" placeholder="Search files or #tag" aria-label="Search files or #tag">
         </div>
       </header>
 
       <div id="toolbar" class="toolbar">
         <span id="item-count" class="muted small"></span>
         <span class="grow"></span>
-        <button id="select-btn" class="btn" type="button">Select</button>
-        <button id="sort-btn" class="btn mobile-only" type="button">Sort</button>
-        <button id="new-folder" class="btn" type="button">New folder</button>
-        <button id="import-btn" class="btn" type="button">Import folder</button>
-        <button id="camera-btn" class="btn mobile-only" type="button">Take photo</button>
-        <button id="upload-btn" class="btn primary" type="button">Upload</button>
+        <button id="select-btn" class="btn" type="button" data-i18n="select">Select</button>
+        <button id="sort-btn" class="btn mobile-only" type="button" data-i18n="sort">Sort</button>
+        <button id="new-folder" class="btn" type="button" data-i18n="new_folder">New folder</button>
+        <button id="import-btn" class="btn" type="button" data-i18n="import_folder">Import folder</button>
+        <button id="camera-btn" class="btn mobile-only" type="button" data-i18n="take_photo">Take photo</button>
+        <button id="upload-btn" class="btn primary" type="button" data-i18n="upload">Upload</button>
         <input id="file-input" type="file" multiple hidden>
         <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
         <input id="folder-input" type="file" webkitdirectory directory multiple hidden>
@@ -80,15 +80,15 @@
       <div id="trash-toolbar" class="toolbar hidden">
         <span id="trash-count" class="muted small"></span>
         <span class="grow"></span>
-        <button id="trash-select-btn" class="btn" type="button" data-trash="select">Select</button>
-        <button class="btn" type="button" data-trash="restore-all">Restore all</button>
-        <button class="btn danger" type="button" data-trash="purge-all">Delete all forever</button>
+        <button id="trash-select-btn" class="btn" type="button" data-trash="select" data-i18n="select">Select</button>
+        <button class="btn" type="button" data-trash="restore-all" data-i18n="restore_all">Restore all</button>
+        <button class="btn danger" type="button" data-trash="purge-all" data-i18n="delete_all_forever">Delete all forever</button>
       </div>
 
       <div id="bulk-bar" class="bulk-bar hidden" role="toolbar" aria-label="Selected items">
         <span id="bulk-count"></span>
         <span class="grow"></span>
-        <button class="btn small" type="button" data-bulk="select-all">Select all</button>
+        <button class="btn small" type="button" data-bulk="select-all" data-i18n="select_all">Select all</button>
         <button class="btn small files-only" type="button" data-bulk="move">Move</button>
         <button class="btn small files-only" type="button" data-bulk="tag">Tag</button>
         <button class="btn small danger files-only" type="button" data-bulk="delete">Move to bin</button>
@@ -103,6 +103,7 @@
       </div>
 
       <section id="content" class="content" aria-live="polite"></section>
+      <nav id="pager" class="pager hidden" aria-label="Pages"></nav>
     </main>
   </div>
 

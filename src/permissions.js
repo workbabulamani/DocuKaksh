@@ -23,4 +23,8 @@ export const THEMES = [
   'day', 'night', 'nord', 'dracula', 'solarized-light', 'solarized-dark',
   'gruvbox-dark', 'catppuccin-mocha', 'tokyo-night', 'rose-pine-dawn',
   'one-dark', 'monokai', 'github-light', 'everforest-light', 'ayu-dark', 'material-ocean',
+  'lime',
 ];
+
+// Languages the interface can be shown in. Codes are stored per account.
+export const LANGUAGE_CODES = ['en', 'hi', 'bn', 'te', 'ta', 'mr', 'ur', 'es', 'fr', 'de', 'zh', 'ar'];

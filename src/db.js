@@ -186,6 +186,28 @@ function migrate(db) {
   ensureColumn(db, 'users', 'accent_primary', "TEXT NOT NULL DEFAULT ''");
   ensureColumn(db, 'users', 'accent_secondary', "TEXT NOT NULL DEFAULT ''");
 
+  // Version 5: profile details, two-factor sign-in, trusted browsers, list size, server settings.
+  ensureColumn(db, 'users', 'first_name', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'last_name', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'phone', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'organisation', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'language', "TEXT NOT NULL DEFAULT 'en'");
+  ensureColumn(db, 'users', 'page_size', 'INTEGER NOT NULL DEFAULT 50');
+  ensureColumn(db, 'users', 'totp_secret', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'totp_enabled', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'users', 'totp_last_step', 'INTEGER NOT NULL DEFAULT 0');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trusted_devices (
+      token_hash TEXT PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+
   // Creators of existing persons keep access to them.
   db.exec(`
     INSERT OR IGNORE INTO person_access (person_id, user_id)

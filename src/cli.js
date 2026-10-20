@@ -33,13 +33,32 @@ function resetPassword(address) {
   db.close();
 }
 
+// Turns off two-factor sign-in for an account, for when the authenticator app is lost.
+function disableTwoFactor(address) {
+  const config = loadConfig();
+  const db = openDatabase(path.resolve(config.dataDir, 'docukaksh.db'));
+  const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(address.trim().toLowerCase());
+  if (!user) {
+    console.error(`No account with email ${address}`);
+    process.exitCode = 1;
+  } else {
+    db.prepare("UPDATE users SET totp_enabled = 0, totp_secret = '', totp_last_step = 0 WHERE id = ?").run(user.id);
+    db.prepare('DELETE FROM trusted_devices WHERE user_id = ?').run(user.id);
+    console.log(`Two-factor sign-in is now off for ${user.email}.`);
+  }
+  db.close();
+}
+
 if (command === 'gen-key') {
   genKey();
+} else if (command === 'disable-2fa' && argument) {
+  disableTwoFactor(argument);
 } else if (command === 'reset-password' && argument) {
   resetPassword(argument);
 } else {
   console.log('Usage:');
   console.log('  node src/cli.js gen-key');
   console.log('  node src/cli.js reset-password <email>');
+  console.log('  node src/cli.js disable-2fa <email>');
   process.exitCode = 1;
 }
