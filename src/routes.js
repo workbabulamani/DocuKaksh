@@ -1,194 +1,42 @@
 import express from 'express';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
 import multer from 'multer';
 import {
   SESSION_COOKIE, createSession, deleteSession, deleteUserSessions, findSessionUser,
   hashPassword, verifyPassword,
 } from './auth.js';
-import { ROLES, can, permissionsFor } from './permissions.js';
+import { ROLES, THEMES, can, permissionsFor } from './permissions.js';
+import { createAccess } from './access.js';
+import { createDocumentsRouter } from './documents.js';
+import {
+  HttpError, badRequest, cleanEmail, cleanPassword, cleanText, notFound, parseCookies, parseId,
+} from './http.js';
 
-// Only these types are rendered inline. Anything else is served as a download, so an uploaded
-// HTML or SVG file can never run script on this origin.
-const INLINE_TYPES = new Set([
-  'application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'text/plain',
-]);
+// Paths a user may call while they still have to change their temporary password.
+const PASSWORD_CHANGE_ALLOWED = new Set(['/auth/status', '/auth/password', '/auth/logout']);
 
-// Walks down from a folder to collect it and all of its descendants.
-const SUBTREE = `WITH RECURSIVE subtree(id) AS (
-  SELECT id FROM folders WHERE id = ?
-  UNION ALL
-  SELECT f.id FROM folders f JOIN subtree s ON f.parent_id = s.id
-)`;
-
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-const badRequest = (message) => new HttpError(400, message);
-const notFound = (message = 'Not found') => new HttpError(404, message);
-
-function parseId(value) {
-  const id = Number(value);
-  if (!Number.isSafeInteger(id) || id <= 0) throw badRequest('Invalid id');
-  return id;
-}
-
-function parseOptionalId(value) {
-  if (value === undefined || value === null || value === '') return null;
-  return parseId(value);
-}
-
-function cleanText(value, label, max = 255) {
-  const text = typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim() : '';
-  if (!text) throw badRequest(`${label} is required`);
-  if (text.length > max) throw badRequest(`${label} must be ${max} characters or fewer`);
-  return text;
-}
-
-function cleanEmail(value) {
-  const email = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw badRequest('Enter a valid email');
-  return email;
-}
-
-function cleanPassword(value) {
-  if (typeof value !== 'string' || value.length < 8) throw badRequest('Password must be at least 8 characters');
-  if (value.length > 200) throw badRequest('Password is too long');
+const cleanRole = (value) => {
+  if (!ROLES.includes(value)) throw badRequest(`Role must be one of: ${ROLES.join(', ')}`);
   return value;
-}
+};
 
-function cleanRole(value) {
-  if (!ROLES.includes(value)) throw badRequest('Role must be one of: ' + ROLES.join(', '));
+const cleanTheme = (value) => {
+  if (!THEMES.includes(value)) throw badRequest('Unknown theme');
   return value;
-}
+};
 
-function cleanColor(value) {
-  return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#4f46e5';
-}
+const randomPassword = () => crypto.randomBytes(9).toString('base64url');
 
-function cleanMime(value) {
-  return typeof value === 'string' && value.length <= 100 && /^[\w.+-]+\/[\w.+-]+$/.test(value)
-    ? value.toLowerCase()
-    : 'application/octet-stream';
-}
-
-// Browsers send UTF-8 names, which busboy may read as latin1. Undo that when it is clearly mojibake.
-function cleanFileName(original) {
-  const decoded = Buffer.from(original, 'latin1').toString('utf8');
-  const name = (decoded.includes('\uFFFD') ? original : decoded)
-    .split(/[\\/]/).pop()
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .trim();
-  return (name || 'untitled').slice(0, 255);
-}
-
-const escapeLike = (text) => text.replace(/[\\%_]/g, (c) => `\\${c}`);
-
-function sha256File(filePath) {
-  return new Promise((resolve, reject) => {
-    const hash = crypto.createHash('sha256');
-    fs.createReadStream(filePath)
-      .on('data', (chunk) => hash.update(chunk))
-      .on('end', () => resolve(hash.digest('hex')))
-      .on('error', reject);
-  });
-}
-
-function parseCookies(header = '') {
-  const cookies = {};
-  for (const part of header.split(';')) {
-    const index = part.indexOf('=');
-    if (index > 0) cookies[part.slice(0, index).trim()] = part.slice(index + 1).trim();
-  }
-  return cookies;
-}
-
-// Never send the internal storage name to the browser.
-function publicFile({ stored_name, ...file }) {
-  return file;
-}
-
-export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }) {
+export function createApiRouter({ db, uploadsDir, previewsDir, cookieSecure, maxUploadBytes }) {
   const router = express.Router();
   router.use(express.json({ limit: '100kb' }));
-
-  const storedPath = (storedName) => path.join(uploadsDir, storedName);
-  const removeStored = (rows) => {
-    for (const row of rows) fs.rmSync(storedPath(row.stored_name), { force: true });
-  };
-  const discardUploads = (uploaded) => {
-    for (const file of uploaded) fs.rmSync(file.path, { force: true });
-  };
-
-  const upload = multer({
-    storage: multer.diskStorage({
-      destination: uploadsDir,
-      filename: (_req, _file, cb) => cb(null, crypto.randomUUID()),
-    }),
-    limits: { fileSize: maxUploadBytes, files: 50 },
-  });
-
-  const requireAuth = (req, _res, next) => {
-    const user = findSessionUser(db, parseCookies(req.headers.cookie)[SESSION_COOKIE]);
-    if (!user) return next(new HttpError(401, 'Not signed in'));
-    req.user = user;
-    next();
-  };
+  const access = createAccess({ db, uploadsDir });
 
   const requirePermission = (permission) => (req, _res, next) => {
     if (can(req.user, permission)) return next();
     next(new HttpError(403, 'You do not have permission to do that'));
   };
 
-  const setPassword = (userId, password) => {
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), userId);
-  };
-
-  const getUser = (userId) => {
-    const row = db.prepare('SELECT id, email, role, active, created_at FROM users WHERE id = ?').get(userId);
-    if (!row) throw notFound('User not found');
-    return row;
-  };
-
-  const activeSuperAdminCount = () =>
-    db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'super_admin' AND active = 1").get().count;
-
-  // Ownership checks. Every lookup is scoped to the signed-in user, so ids from other accounts look like 404s.
-  const getPerson = (userId, personId) => {
-    const row = db.prepare('SELECT * FROM persons WHERE id = ? AND user_id = ?').get(personId, userId);
-    if (!row) throw notFound('Person not found');
-    return row;
-  };
-  const getFolder = (userId, folderId) => {
-    const row = db.prepare(`
-      SELECT f.* FROM folders f JOIN persons p ON p.id = f.person_id
-      WHERE f.id = ? AND p.user_id = ?
-    `).get(folderId, userId);
-    if (!row) throw notFound('Folder not found');
-    return row;
-  };
-  const getFile = (userId, fileId) => {
-    const row = db.prepare(`
-      SELECT f.* FROM files f JOIN persons p ON p.id = f.person_id
-      WHERE f.id = ? AND p.user_id = ?
-    `).get(fileId, userId);
-    if (!row) throw notFound('File not found');
-    return row;
-  };
-  const assertFolderInPerson = (userId, folderId, personId) => {
-    if (folderId === null) return;
-    if (getFolder(userId, folderId).person_id !== personId) {
-      throw badRequest('That folder belongs to a different person');
-    }
-  };
-  const isInSubtree = (rootId, candidateId) =>
-    db.prepare(`${SUBTREE} SELECT 1 FROM subtree WHERE id = ?`).get(rootId, candidateId) !== undefined;
-  const filesInSubtree = (rootId) =>
-    db.prepare(`${SUBTREE} SELECT stored_name FROM files WHERE folder_id IN (SELECT id FROM subtree)`).all(rootId);
   const countUsers = () => db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
 
   const issueSession = (res, userId) => {
@@ -202,15 +50,54 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     });
   };
 
-  router.get('/health', (_req, res) => res.json({ ok: true }));
+  const setPassword = (userId, password, { mustChange = false } = {}) => {
+    db.prepare('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?')
+      .run(hashPassword(password), mustChange ? 1 : 0, userId);
+  };
 
-  // ---- Auth -------------------------------------------------------------
+  const getUser = (userId) => {
+    const row = db.prepare(`
+      SELECT u.id, u.email, u.role, u.active, u.must_change_password, u.created_at,
+        (SELECT COUNT(*) FROM person_access pa WHERE pa.user_id = u.id) AS person_count
+      FROM users u WHERE u.id = ?
+    `).get(userId);
+    if (!row) throw notFound('User not found');
+    return row;
+  };
+
+  const activeSuperAdminCount = () =>
+    db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'super_admin' AND active = 1").get().count;
+
+  // Replaces a user's person assignments with the given list of alive person ids.
+  const assignPersons = (userId, personIds) => {
+    const ids = Array.isArray(personIds) ? personIds.map(parseId) : [];
+    db.prepare('DELETE FROM person_access WHERE user_id = ?').run(userId);
+    const link = db.prepare(`
+      INSERT OR IGNORE INTO person_access (person_id, user_id)
+      SELECT id, ? FROM persons WHERE id = ? AND deleted_at IS NULL
+    `);
+    for (const id of ids) link.run(userId, id);
+  };
+
+  // ---- Public: health, status, login, setup, recovery -------------------------
+
+  router.get('/health', (_req, res) => res.json({ ok: true }));
 
   router.get('/auth/status', (req, res) => {
     const user = findSessionUser(db, parseCookies(req.headers.cookie)[SESSION_COOKIE]);
     res.json({
       setupRequired: countUsers() === 0,
-      user: user && { ...user, permissions: permissionsFor(user.role) },
+      user: user && {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        theme: user.theme,
+        mustChangePassword: user.must_change_password === 1,
+        permissions: permissionsFor(user.role),
+        pendingRequests: can(user, 'recovery:manage')
+          ? db.prepare("SELECT COUNT(*) AS count FROM password_requests WHERE status = 'pending'").get().count
+          : 0,
+      },
     });
   });
 
@@ -229,12 +116,12 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     const user = email ? db.prepare('SELECT * FROM users WHERE email = ?').get(email) : undefined;
-    // Disabled accounts get the same message as a wrong password, so the account state is not revealed.
+    // Disabled accounts get the same message as a wrong password, so account state is not revealed.
     if (!user || !user.active || !verifyPassword(password, user.password_hash)) {
       throw new HttpError(401, 'Invalid email or password');
     }
     issueSession(res, user.id);
-    res.json({ id: user.id, email: user.email, role: user.role });
+    res.json({ id: user.id, email: user.email, role: user.role, mustChangePassword: user.must_change_password === 1 });
   });
 
   router.post('/auth/logout', (req, res) => {
@@ -243,225 +130,39 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     res.status(204).end();
   });
 
-  router.use(requireAuth);
-
-  // ---- Persons (categories) ---------------------------------------------
-
-  router.get('/persons', (req, res) => {
-    res.json(db.prepare(`
-      SELECT p.id, p.name, p.color, p.created_at,
-        (SELECT COUNT(*) FROM files f WHERE f.person_id = p.id) AS file_count
-      FROM persons p WHERE p.user_id = ?
-      ORDER BY p.name COLLATE NOCASE
-    `).all(req.user.id));
-  });
-
-  router.post('/persons', (req, res) => {
-    const name = cleanText(req.body?.name, 'Name', 120);
-    const color = cleanColor(req.body?.color);
-    const { lastInsertRowid } = db.prepare('INSERT INTO persons (user_id, name, color) VALUES (?, ?, ?)')
-      .run(req.user.id, name, color);
-    res.status(201).json(getPerson(req.user.id, Number(lastInsertRowid)));
-  });
-
-  router.patch('/persons/:id', (req, res) => {
-    const person = getPerson(req.user.id, parseId(req.params.id));
-    const name = req.body?.name !== undefined ? cleanText(req.body.name, 'Name', 120) : person.name;
-    const color = req.body?.color !== undefined ? cleanColor(req.body.color) : person.color;
-    db.prepare('UPDATE persons SET name = ?, color = ? WHERE id = ?').run(name, color, person.id);
-    res.json(getPerson(req.user.id, person.id));
-  });
-
-  router.delete('/persons/:id', (req, res) => {
-    const person = getPerson(req.user.id, parseId(req.params.id));
-    const stored = db.prepare('SELECT stored_name FROM files WHERE person_id = ?').all(person.id);
-    db.prepare('DELETE FROM persons WHERE id = ?').run(person.id);
-    removeStored(stored);
-    res.status(204).end();
-  });
-
-  // Contents of one folder (or the person's root when no folder_id is given).
-  router.get('/persons/:id/browse', (req, res) => {
-    const person = getPerson(req.user.id, parseId(req.params.id));
-    const folderId = parseOptionalId(req.query.folder_id);
-    let folder = null;
-    let breadcrumb = [];
-    if (folderId !== null) {
-      folder = getFolder(req.user.id, folderId);
-      if (folder.person_id !== person.id) throw notFound('Folder not found');
-      breadcrumb = db.prepare(`
-        WITH RECURSIVE up(id, parent_id, name, depth) AS (
-          SELECT id, parent_id, name, 0 FROM folders WHERE id = ?
-          UNION ALL
-          SELECT f.id, f.parent_id, f.name, up.depth + 1 FROM folders f JOIN up ON f.id = up.parent_id
-        )
-        SELECT id, name FROM up ORDER BY depth DESC
-      `).all(folder.id);
-    }
-    const folders = db.prepare(`
-      SELECT id, name, created_at FROM folders
-      WHERE person_id = ? AND parent_id IS ?
-      ORDER BY name COLLATE NOCASE
-    `).all(person.id, folderId);
-    const files = db.prepare(`
-      SELECT id, name, mime_type, size, created_at FROM files
-      WHERE person_id = ? AND folder_id IS ?
-      ORDER BY name COLLATE NOCASE
-    `).all(person.id, folderId);
-    res.json({ person, folder, breadcrumb, folders, files });
-  });
-
-  // Every folder of a person in one flat list, used by the move dialog.
-  router.get('/persons/:id/tree', (req, res) => {
-    const person = getPerson(req.user.id, parseId(req.params.id));
-    res.json(db.prepare(`
-      SELECT id, parent_id, name FROM folders WHERE person_id = ? ORDER BY name COLLATE NOCASE
-    `).all(person.id));
-  });
-
-  // ---- Folders ----------------------------------------------------------
-
-  router.post('/folders', (req, res) => {
-    const person = getPerson(req.user.id, parseId(req.body?.person_id));
-    const parentId = parseOptionalId(req.body?.parent_id);
-    assertFolderInPerson(req.user.id, parentId, person.id);
-    const name = cleanText(req.body?.name, 'Folder name');
-    const { lastInsertRowid } = db.prepare('INSERT INTO folders (person_id, parent_id, name) VALUES (?, ?, ?)')
-      .run(person.id, parentId, name);
-    res.status(201).json(getFolder(req.user.id, Number(lastInsertRowid)));
-  });
-
-  router.patch('/folders/:id', (req, res) => {
-    const folder = getFolder(req.user.id, parseId(req.params.id));
-    const name = req.body?.name !== undefined ? cleanText(req.body.name, 'Folder name') : folder.name;
-    let parentId = folder.parent_id;
-    if (req.body?.parent_id !== undefined) {
-      parentId = parseOptionalId(req.body.parent_id);
-      assertFolderInPerson(req.user.id, parentId, folder.person_id);
-      if (parentId !== null && isInSubtree(folder.id, parentId)) {
-        throw badRequest('A folder cannot be moved into itself or into one of its subfolders');
+  // "Forgot password". Always answers the same way, so it cannot be used to find accounts.
+  router.post('/auth/recovery', (req, res) => {
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const note = typeof req.body?.note === 'string' ? req.body.note.trim().slice(0, 500) : '';
+    const user = email ? db.prepare('SELECT id FROM users WHERE email = ? AND active = 1').get(email) : undefined;
+    if (user) {
+      const pending = db.prepare("SELECT 1 FROM password_requests WHERE user_id = ? AND status = 'pending'").get(user.id);
+      if (!pending) {
+        db.prepare('INSERT INTO password_requests (user_id, note) VALUES (?, ?)').run(user.id, note);
       }
     }
-    db.prepare('UPDATE folders SET name = ?, parent_id = ? WHERE id = ?').run(name, parentId, folder.id);
-    res.json(getFolder(req.user.id, folder.id));
-  });
-
-  router.delete('/folders/:id', (req, res) => {
-    const folder = getFolder(req.user.id, parseId(req.params.id));
-    const stored = filesInSubtree(folder.id);
-    db.prepare('DELETE FROM folders WHERE id = ?').run(folder.id);
-    removeStored(stored);
-    res.status(204).end();
-  });
-
-  // ---- Files ------------------------------------------------------------
-
-  router.post('/files', upload.array('files', 50), async (req, res) => {
-    const uploaded = req.files ?? [];
-    try {
-      if (!uploaded.length) throw badRequest('No files were uploaded');
-      const person = getPerson(req.user.id, parseId(req.body?.person_id));
-      const folderId = parseOptionalId(req.body?.folder_id);
-      assertFolderInPerson(req.user.id, folderId, person.id);
-
-      const records = [];
-      for (const file of uploaded) {
-        records.push({
-          name: cleanFileName(file.originalname),
-          storedName: file.filename,
-          mime: cleanMime(file.mimetype),
-          size: file.size,
-          sha256: await sha256File(file.path),
-        });
-      }
-
-      const insert = db.prepare(`
-        INSERT INTO files (person_id, folder_id, name, stored_name, mime_type, size, sha256)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `);
-      const ids = [];
-      db.exec('BEGIN');
-      try {
-        for (const r of records) {
-          const { lastInsertRowid } = insert.run(person.id, folderId, r.name, r.storedName, r.mime, r.size, r.sha256);
-          ids.push(Number(lastInsertRowid));
-        }
-        db.exec('COMMIT');
-      } catch (err) {
-        db.exec('ROLLBACK');
-        throw err;
-      }
-      res.status(201).json(ids.map((id) => publicFile(getFile(req.user.id, id))));
-    } catch (err) {
-      discardUploads(uploaded);
-      throw err;
-    }
-  });
-
-  router.get('/files/:id', (req, res) => {
-    res.json(publicFile(getFile(req.user.id, parseId(req.params.id))));
-  });
-
-  router.patch('/files/:id', (req, res) => {
-    const file = getFile(req.user.id, parseId(req.params.id));
-    const name = req.body?.name !== undefined ? cleanText(req.body.name, 'File name') : file.name;
-    let folderId = file.folder_id;
-    if (req.body?.folder_id !== undefined) {
-      folderId = parseOptionalId(req.body.folder_id);
-      assertFolderInPerson(req.user.id, folderId, file.person_id);
-    }
-    db.prepare('UPDATE files SET name = ?, folder_id = ? WHERE id = ?').run(name, folderId, file.id);
-    res.json(publicFile(getFile(req.user.id, file.id)));
-  });
-
-  router.delete('/files/:id', (req, res) => {
-    const file = getFile(req.user.id, parseId(req.params.id));
-    db.prepare('DELETE FROM files WHERE id = ?').run(file.id);
-    removeStored([file]);
-    res.status(204).end();
-  });
-
-  // Streams the file. Inline for previewable types, attachment otherwise or when ?download=1.
-  router.get('/files/:id/content', (req, res, next) => {
-    const file = getFile(req.user.id, parseId(req.params.id));
-    const inline = req.query.download !== '1' && INLINE_TYPES.has(file.mime_type);
-    const asciiName = file.name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
-    res.setHeader('Content-Type', inline ? file.mime_type : 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `${inline ? 'inline' : 'attachment'}; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(file.name)}`,
-    );
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Cache-Control', 'private, no-cache');
-    res.sendFile(storedPath(file.stored_name), (err) => {
-      if (err && !res.headersSent) next(notFound('File is missing from storage'));
+    res.status(202).json({
+      message: 'If that account exists, a request has been sent to the super admin. They will contact you with a temporary password.',
     });
   });
 
-  // ---- Search -----------------------------------------------------------
+  // ---- Authenticated -------------------------------------------------------------
 
-  router.get('/search', (req, res) => {
-    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 200) : '';
-    if (!q) return res.json([]);
-    res.json(db.prepare(`
-      SELECT f.id, f.name, f.mime_type, f.size, f.created_at, f.person_id, f.folder_id,
-        p.name AS person_name, fo.name AS folder_name
-      FROM files f
-      JOIN persons p ON p.id = f.person_id
-      LEFT JOIN folders fo ON fo.id = f.folder_id
-      WHERE p.user_id = ? AND f.name LIKE ? ESCAPE '\\'
-      ORDER BY f.name COLLATE NOCASE
-      LIMIT 100
-    `).all(req.user.id, `%${escapeLike(q)}%`));
+  router.use((req, _res, next) => {
+    const user = findSessionUser(db, parseCookies(req.headers.cookie)[SESSION_COOKIE]);
+    if (!user) return next(new HttpError(401, 'Not signed in'));
+    req.user = user;
+    if (user.must_change_password && !PASSWORD_CHANGE_ALLOWED.has(req.path)) {
+      return next(new HttpError(403, 'Change your temporary password first', 'PASSWORD_CHANGE_REQUIRED'));
+    }
+    next();
   });
-
-  // ---- Own account ------------------------------------------------------
 
   router.post('/auth/password', (req, res) => {
     const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
-    if (!verifyPassword(typeof req.body?.current === 'string' ? req.body.current : '', row.password_hash)) {
-      throw badRequest('Current password is incorrect');
-    }
+    const current = typeof req.body?.current === 'string' ? req.body.current : '';
+    // A user with a temporary password must type it; an ordinary change also needs the current password.
+    if (!verifyPassword(current, row.password_hash)) throw badRequest('Current password is incorrect');
     setPassword(req.user.id, cleanPassword(req.body?.password));
     // Changing the password signs out every other session, then gives this one a fresh token.
     deleteUserSessions(db, req.user.id);
@@ -469,20 +170,29 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     res.status(204).end();
   });
 
-  // ---- User management (super admin only) -------------------------------
+  router.patch('/auth/me', (req, res) => {
+    if (req.body?.theme !== undefined) {
+      db.prepare('UPDATE users SET theme = ? WHERE id = ?').run(cleanTheme(req.body.theme), req.user.id);
+    }
+    res.json({ theme: db.prepare('SELECT theme FROM users WHERE id = ?').get(req.user.id).theme });
+  });
+
+  // ---- User management (super admin) ------------------------------------------
 
   router.use('/users', requirePermission('users:manage'));
 
   router.get('/users', (_req, res) => {
     res.json(db.prepare(`
-      SELECT u.id, u.email, u.role, u.active, u.created_at,
-        (SELECT COUNT(*) FROM persons p WHERE p.user_id = u.id) AS person_count,
-        (SELECT COUNT(*) FROM files f JOIN persons p ON p.id = f.person_id WHERE p.user_id = u.id) AS file_count
+      SELECT u.id, u.email, u.role, u.active, u.must_change_password, u.created_at,
+        (SELECT COUNT(*) FROM person_access pa WHERE pa.user_id = u.id) AS person_count,
+        (SELECT COUNT(*) FROM files f WHERE f.uploaded_by = u.id AND f.deleted_at IS NULL) AS file_count,
+        (SELECT group_concat(pa.person_id) FROM person_access pa WHERE pa.user_id = u.id) AS person_ids
       FROM users u
       ORDER BY u.id
     `).all());
   });
 
+  // Creates an account with a temporary password. The user must change it at first sign-in.
   router.post('/users', (req, res) => {
     const email = cleanEmail(req.body?.email);
     const password = cleanPassword(req.body?.password);
@@ -490,9 +200,12 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) {
       throw new HttpError(409, 'A user with that email already exists');
     }
-    const { lastInsertRowid } = db.prepare('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)')
-      .run(email, hashPassword(password), role);
-    res.status(201).json(getUser(Number(lastInsertRowid)));
+    const { lastInsertRowid } = db.prepare(
+      'INSERT INTO users (email, password_hash, role, must_change_password) VALUES (?, ?, ?, 1)',
+    ).run(email, hashPassword(password), role);
+    const id = Number(lastInsertRowid);
+    assignPersons(id, req.body?.personIds);
+    res.status(201).json(getUser(id));
   });
 
   router.patch('/users/:id', (req, res) => {
@@ -512,16 +225,25 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     res.json(getUser(id));
   });
 
-  // Resets another user's password. Their existing sessions are signed out.
+  // Body: { personIds: [...] } replaces the list of persons this user can see.
+  router.put('/users/:id/persons', (req, res) => {
+    const id = parseId(req.params.id);
+    getUser(id);
+    assignPersons(id, req.body?.personIds);
+    res.json(getUser(id));
+  });
+
+  // Resets another user's password to a temporary one. Their sessions are signed out.
   router.post('/users/:id/password', (req, res) => {
     const id = parseId(req.params.id);
     getUser(id);
-    setPassword(id, cleanPassword(req.body?.password));
+    setPassword(id, cleanPassword(req.body?.password), { mustChange: true });
     deleteUserSessions(db, id);
     res.status(204).end();
   });
 
-  // Deletes the account, all of its persons, folders and files (including the stored blobs).
+  // Deletes the login only. Documents are never removed with an account: persons they created
+  // move to the super admin, and files they uploaded stay in place with no uploader.
   router.delete('/users/:id', (req, res) => {
     const id = parseId(req.params.id);
     const target = getUser(id);
@@ -529,15 +251,112 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     if (target.role === 'super_admin' && target.active && activeSuperAdminCount() <= 1) {
       throw badRequest('The install must keep at least one active super admin');
     }
-    const stored = db.prepare(`
-      SELECT f.stored_name FROM files f JOIN persons p ON p.id = f.person_id WHERE p.user_id = ?
-    `).all(id);
-    db.prepare('DELETE FROM users WHERE id = ?').run(id);
-    removeStored(stored);
+    db.exec('BEGIN');
+    try {
+      db.prepare('UPDATE persons SET user_id = ? WHERE user_id = ?').run(req.user.id, id);
+      db.prepare('UPDATE files SET uploaded_by = NULL WHERE uploaded_by = ?').run(id);
+      db.prepare('DELETE FROM users WHERE id = ?').run(id);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
     res.status(204).end();
   });
 
-  // ---- Errors -----------------------------------------------------------
+  // ---- Recovery requests (super admin) --------------------------------------
+
+  router.get('/recovery', requirePermission('recovery:manage'), (_req, res) => {
+    res.json(db.prepare(`
+      SELECT r.id, r.note, r.status, r.created_at, r.resolved_at, u.id AS user_id, u.email
+      FROM password_requests r JOIN users u ON u.id = r.user_id
+      ORDER BY (r.status = 'pending') DESC, r.created_at DESC
+      LIMIT 100
+    `).all());
+  });
+
+  // Approving sets a temporary password and returns it once, so the admin can pass it on.
+  router.post('/recovery/:id/approve', requirePermission('recovery:manage'), (req, res) => {
+    const request = db.prepare("SELECT * FROM password_requests WHERE id = ? AND status = 'pending'")
+      .get(parseId(req.params.id));
+    if (!request) throw notFound('Pending request not found');
+    const temporaryPassword = randomPassword();
+    setPassword(request.user_id, temporaryPassword, { mustChange: true });
+    deleteUserSessions(db, request.user_id);
+    db.prepare("UPDATE password_requests SET status = 'approved', resolved_at = datetime('now') WHERE id = ?")
+      .run(request.id);
+    const user = db.prepare('SELECT email FROM users WHERE id = ?').get(request.user_id);
+    res.json({ email: user.email, temporaryPassword });
+  });
+
+  router.post('/recovery/:id/reject', requirePermission('recovery:manage'), (req, res) => {
+    const result = db.prepare(`
+      UPDATE password_requests SET status = 'rejected', resolved_at = datetime('now')
+      WHERE id = ? AND status = 'pending'
+    `).run(parseId(req.params.id));
+    if (!result.changes) throw notFound('Pending request not found');
+    res.status(204).end();
+  });
+
+  // ---- Recycle bin (super admin) --------------------------------------------
+
+  router.use('/trash', requirePermission('trash:manage'));
+
+  router.get('/trash', (_req, res) => {
+    res.json(access.listTrash());
+  });
+
+  // Restores an item to where it was. Its contents come back only if they were deleted with it.
+  router.post('/trash/:kind/:id/restore', (req, res) => {
+    const id = parseId(req.params.id);
+    const kind = req.params.kind;
+    if (kind === 'person') {
+      const person = db.prepare('SELECT * FROM persons WHERE id = ? AND deleted_at IS NOT NULL').get(id);
+      if (!person) throw notFound('Item not found in the recycle bin');
+      access.restorePerson(person);
+    } else if (kind === 'folder') {
+      const folder = access.getFolder(req.user, id, { trashed: true });
+      if (!folder.deleted_at) throw notFound('Item not found in the recycle bin');
+      access.restoreFolder(folder);
+    } else if (kind === 'file') {
+      const file = access.getFile(req.user, id, { trashed: true });
+      if (!file.deleted_at) throw notFound('Item not found in the recycle bin');
+      access.restoreFile(file);
+    } else {
+      throw notFound('Unknown item type');
+    }
+    res.status(204).end();
+  });
+
+  // Permanently deletes an item from the bin. Only items already in the bin can be removed this way.
+  router.delete('/trash/:kind/:id', (req, res) => {
+    const id = parseId(req.params.id);
+    const kind = req.params.kind;
+    if (kind === 'person') {
+      const person = db.prepare('SELECT * FROM persons WHERE id = ? AND deleted_at IS NOT NULL').get(id);
+      if (!person) throw notFound('Item not found in the recycle bin');
+      access.purgePerson(person);
+    } else if (kind === 'folder') {
+      const folder = access.getFolder(req.user, id, { trashed: true });
+      if (!folder.deleted_at) throw notFound('Item not found in the recycle bin');
+      access.purgeFolder(folder);
+    } else if (kind === 'file') {
+      const file = access.getFile(req.user, id, { trashed: true });
+      if (!file.deleted_at) throw notFound('Item not found in the recycle bin');
+      access.purgeFile(file);
+    } else {
+      throw notFound('Unknown item type');
+    }
+    res.status(204).end();
+  });
+
+  // ---- Documents (persons, folders, files, tags, search, previews) --------------
+
+  router.use(createDocumentsRouter({
+    db, access, uploadsDir, previewsDir, maxUploadBytes, requirePermission,
+  }));
+
+  // ---- Errors -----------------------------------------------------------------
 
   router.use((_req, _res, next) => next(notFound('Endpoint not found')));
 
@@ -546,7 +365,9 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
       const tooBig = err.code === 'LIMIT_FILE_SIZE';
       return res.status(tooBig ? 413 : 400).json({ error: tooBig ? 'File is too large' : err.message });
     }
-    if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err instanceof HttpError) {
+      return res.status(err.status).json(err.code ? { error: err.message, code: err.code } : { error: err.message });
+    }
     if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
     if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Request body is too large' });
     console.error(err);

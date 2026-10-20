@@ -1,9 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="day">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#4f46e5">
   <title>DocuKaksh</title>
   <link rel="icon" href="data:,">
@@ -16,41 +15,60 @@
     <div id="scrim" class="scrim"></div>
 
     <aside id="sidebar" class="sidebar">
-      <div class="brand"><span class="logo">D</span>DocuKaksh</div>
+      <div class="sidebar-head">
+        <div class="brand"><span class="logo">D</span><span class="brand-text">DocuKaksh</span></div>
+        <button id="collapse-btn" class="btn ghost icon-btn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">«</button>
+      </div>
 
       <div class="side-head">
-        <span>Persons</span>
-        <button id="new-person" class="btn small" type="button">+ New</button>
+        <span class="side-label">Persons</span>
+        <button id="new-person" class="btn small side-label" type="button">+ New</button>
       </div>
       <nav id="person-list" class="person-list" aria-label="Persons"></nav>
 
       <div id="admin-section" class="side-section hidden">
-        <div class="side-head"><span>Admin</span></div>
-        <button id="nav-users" class="person" type="button" data-nav="users">
-          <span class="pname">Users</span>
+        <div class="side-head"><span class="side-label">Admin</span></div>
+        <button id="nav-users" class="nav-item" type="button" data-nav="users" title="Users">
+          <span class="nav-icon">👥</span><span class="side-label">Users</span>
+        </button>
+        <button id="nav-recovery" class="nav-item" type="button" data-nav="recovery" title="Recovery requests">
+          <span class="nav-icon">🔑</span><span class="side-label">Recovery</span><span id="recovery-count" class="count hidden"></span>
+        </button>
+        <button id="nav-trash" class="nav-item" type="button" data-nav="trash" title="Recycle bin">
+          <span class="nav-icon">🗑</span><span class="side-label">Recycle bin</span>
         </button>
       </div>
 
-      <button id="account-btn" class="account" type="button" aria-label="Account options"></button>
+      <button id="account-btn" class="account" type="button" aria-label="Settings and account" title="Settings">
+        <span class="avatar" id="avatar"></span>
+        <span class="side-label account-email" id="account-email"></span>
+      </button>
     </aside>
 
-    <main class="main">
+    <main class="main" id="main">
       <header class="topbar">
-        <button id="menu-btn" class="btn ghost menu-btn" type="button" aria-label="Open menu">☰</button>
+        <button id="menu-btn" class="btn ghost icon-btn menu-btn" type="button" aria-label="Open menu">☰</button>
         <nav id="crumbs" class="crumbs" aria-label="Location"></nav>
-        <input id="search" class="search" type="search" placeholder="Search all files" aria-label="Search all files">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="search" class="search" type="search" placeholder="Search files or #tag" aria-label="Search files or #tag">
+        </div>
       </header>
 
       <div id="toolbar" class="toolbar">
+        <span id="item-count" class="muted small"></span>
+        <span class="grow"></span>
+        <button id="sort-btn" class="btn mobile-only" type="button">Sort</button>
         <button id="new-folder" class="btn" type="button">New folder</button>
         <button id="upload-btn" class="btn primary" type="button">Upload</button>
         <input id="file-input" type="file" multiple hidden>
-        <span class="grow"></span>
-        <button id="person-more" class="btn ghost" type="button" aria-label="Person options">Person ⋯</button>
+        <button id="person-settings" class="btn ghost icon-btn" type="button" aria-label="Person settings" title="Person settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
       </div>
 
       <div id="users-toolbar" class="toolbar hidden">
-        <span class="muted">Accounts on this install</span>
+        <span class="muted small">Accounts on this install</span>
         <span class="grow"></span>
         <button id="new-user" class="btn primary" type="button">New user</button>
       </div>

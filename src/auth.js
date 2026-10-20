@@ -34,7 +34,7 @@ export function createSession(db, userId) {
 export function findSessionUser(db, token) {
   if (!token) return null;
   return db.prepare(`
-    SELECT u.id, u.email, u.role FROM sessions s
+    SELECT u.id, u.email, u.role, u.theme, u.must_change_password FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token_hash = ? AND s.expires_at > ? AND u.active = 1
   `).get(sha256(token), Date.now()) ?? null;
