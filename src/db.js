@@ -16,6 +16,8 @@ export function openDatabase(dbPath) {
       id INTEGER PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'user',
+      active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -57,5 +59,21 @@ export function openDatabase(dbPath) {
     CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(person_id, parent_id);
     CREATE INDEX IF NOT EXISTS idx_files_folder ON files(person_id, folder_id);
   `);
+  migrate(db);
   return db;
+}
+
+// Upgrades databases created before roles existed. Existing rows are kept.
+function migrate(db) {
+  const userColumns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  if (!userColumns.includes('role')) {
+    db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+  }
+  if (!userColumns.includes('active')) {
+    db.exec('ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1');
+  }
+  // The earliest account of an install becomes its super admin if none exists yet.
+  if (!db.prepare("SELECT 1 FROM users WHERE role = 'super_admin'").get()) {
+    db.exec("UPDATE users SET role = 'super_admin' WHERE id = (SELECT MIN(id) FROM users)");
+  }
 }

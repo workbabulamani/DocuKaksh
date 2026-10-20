@@ -7,15 +7,17 @@ services:
     ports:
       - "3000:3000"
     environment:
+      DATA_DIR: /data
       # Set to "true" when the app is served over HTTPS (for example behind a reverse proxy).
       COOKIE_SECURE: "false"
       # Largest single file accepted for upload, in megabytes.
       MAX_UPLOAD_MB: "100"
     volumes:
-      - docukaksh-data:/data
+      # All app data lives in this host folder:
+      #   ./docukaksh-data/docukaksh.db   database (accounts, persons, folders, file records)
+      #   ./docukaksh-data/uploads/       the uploaded files
+      # To move or back up the app, stop it, copy this folder, and start it again elsewhere.
+      - ./docukaksh-data:/data
     # Small footprint: the app itself is a few tens of MB of RAM.
     mem_limit: 256m
     cpus: 1.0
-
-volumes:
-  docukaksh-data:

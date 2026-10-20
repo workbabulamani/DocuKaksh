@@ -1,5 +1,7 @@
 node_modules
 data
+docukaksh-data
 *.db
 *.db-*
 .env
+docukaksh-data

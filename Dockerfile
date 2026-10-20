@@ -14,9 +14,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY public ./public
 
-# Data (SQLite database and uploaded files) lives in a volume so it survives image upgrades.
+# All app data (SQLite database and uploaded files) is written to /data.
+# docker-compose.yml bind-mounts a host folder there, so the data survives restarts and image upgrades.
 RUN mkdir -p /data && chown node:node /data
-VOLUME ["/data"]
 
 USER node
 EXPOSE 3000

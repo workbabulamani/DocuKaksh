@@ -30,15 +30,20 @@ export function createSession(db, userId) {
   return { token, expiresAt };
 }
 
+// Disabled accounts stop matching here, so their existing sessions stop working immediately.
 export function findSessionUser(db, token) {
   if (!token) return null;
   return db.prepare(`
-    SELECT u.id, u.email FROM sessions s
+    SELECT u.id, u.email, u.role FROM sessions s
     JOIN users u ON u.id = s.user_id
-    WHERE s.token_hash = ? AND s.expires_at > ?
+    WHERE s.token_hash = ? AND s.expires_at > ? AND u.active = 1
   `).get(sha256(token), Date.now()) ?? null;
 }
 
 export function deleteSession(db, token) {
   if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
+}
+
+export function deleteUserSessions(db, userId) {
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
 }

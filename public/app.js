@@ -1,4 +1,4 @@
-const state = { user: null, persons: [], personId: null, folderId: null, query: '' };
+const state = { user: null, persons: [], personId: null, folderId: null, query: '', view: 'files' };
 let renderToken = 0;
 let searchTimer = null;
 let dragDepth = 0;
@@ -10,6 +10,7 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
 
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 const PREVIEWABLE = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/;
+const ROLE_LABELS = { super_admin: 'Super admin', user: 'User' };
 
 // ---- Helpers ------------------------------------------------------------
 
@@ -64,25 +65,32 @@ function extBadge(name) {
 
 const endpoint = (kind) => (kind === 'folder' ? 'folders' : 'files');
 const currentPerson = () => state.persons.find((p) => p.id === state.personId);
+const can = (permission) => Boolean(state.user?.permissions?.includes(permission));
 const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes('Files');
 
-function parseHash() {
+function parseRoute() {
+  if (location.hash === '#/users') return { view: 'users' };
   const match = location.hash.match(/^#\/p\/(\d+)(?:\/f\/(\d+))?$/);
   return match
-    ? { personId: Number(match[1]), folderId: match[2] ? Number(match[2]) : null }
-    : { personId: null, folderId: null };
+    ? { view: 'files', personId: Number(match[1]), folderId: match[2] ? Number(match[2]) : null }
+    : { view: 'files', personId: null, folderId: null };
 }
 
-// Navigation is kept in the URL hash, so reload and the back button both work.
-function go(personId, folderId = null) {
+const personHash = (personId, folderId = null) =>
+  (personId ? `#/p/${personId}${folderId ? `/f/${folderId}` : ''}` : '#/');
+
+// Navigation lives in the URL hash, so reload and the back button both work.
+function navigate(hash) {
+  closeDrawer();
   state.query = '';
   $('#search').value = '';
-  const hash = personId ? `#/p/${personId}${folderId ? `/f/${folderId}` : ''}` : '#/';
   if (location.hash === hash) return render();
   location.hash = hash; // the hashchange listener renders
 }
 
-// ---- Modal and overlay -----------------------------------------------------
+const go = (personId, folderId = null) => navigate(personHash(personId, folderId));
+
+// ---- Overlays: dialogs, sheets and preview -----------------------------------
 
 function openOverlay(html, setup) {
   return new Promise((resolve) => {
@@ -113,7 +121,10 @@ function formModal({ title, message = '', fields = [], submit = 'Save', danger =
         .join('');
       return `<label class="field"><span>${esc(f.label)}</span><select name="${f.name}">${options}</select></label>`;
     }
-    return `<label class="field"><span>${esc(f.label)}</span><input name="${f.name}" type="${f.type || 'text'}" value="${esc(f.value ?? '')}" required autocomplete="off"></label>`;
+    const type = f.type || 'text';
+    const value = type === 'password' ? '' : esc(f.value ?? '');
+    const minlength = type === 'password' ? ' minlength="8"' : '';
+    return `<label class="field"><span>${esc(f.label)}</span><input name="${f.name}" type="${type}" value="${value}"${minlength} required autocomplete="${type === 'password' ? 'new-password' : 'off'}"></label>`;
   }).join('');
 
   return openOverlay(`
@@ -132,6 +143,21 @@ function formModal({ title, message = '', fields = [], submit = 'Save', danger =
       close(Object.fromEntries(new FormData(form)));
     });
     form.querySelector('input, select')?.focus();
+  });
+}
+
+// A menu of actions. Resolves with the chosen value, or null if dismissed.
+function openSheet(title, items) {
+  const buttons = items
+    .map((i) => `<button class="sheet-item${i.danger ? ' danger-text' : ''}" type="button" data-value="${esc(i.value)}">${esc(i.label)}</button>`)
+    .join('');
+  return openOverlay(`
+    <div class="sheet" role="menu" aria-label="${esc(title)}">
+      <p class="sheet-title">${esc(title)}</p>
+      ${buttons}
+      <button class="sheet-item cancel" type="button" data-close>Cancel</button>
+    </div>`, (root, close) => {
+    root.querySelectorAll('[data-value]').forEach((b) => b.addEventListener('click', () => close(b.dataset.value)));
   });
 }
 
@@ -159,6 +185,16 @@ async function openPreview(id) {
     </div>`);
 }
 
+// ---- Drawer (mobile navigation) ------------------------------------------------
+
+function openDrawer() {
+  $('#app').classList.add('drawer-open');
+}
+
+function closeDrawer() {
+  $('#app').classList.remove('drawer-open');
+}
+
 // ---- Auth ----------------------------------------------------------------
 
 async function boot() {
@@ -167,16 +203,19 @@ async function boot() {
   state.user = status.user;
   $('#auth').classList.add('hidden');
   $('#app').classList.remove('hidden');
-  const { personId, folderId } = parseHash();
-  state.personId = personId;
-  state.folderId = folderId;
+  $('#admin-section').classList.toggle('hidden', !can('users:manage'));
+  $('#account-btn').textContent = status.user.email;
+
+  const route = parseRoute();
+  state.view = route.view === 'users' && !can('users:manage') ? 'files' : route.view;
+  state.personId = route.personId;
+  state.folderId = route.folderId;
   await refreshPersons();
-  if (!state.persons.some((p) => p.id === state.personId)) {
+  if (state.view === 'files' && !state.persons.some((p) => p.id === state.personId)) {
     state.personId = state.persons[0]?.id ?? null;
     state.folderId = null;
   }
-  const hash = state.personId ? `#/p/${state.personId}${state.folderId ? `/f/${state.folderId}` : ''}` : '#/';
-  history.replaceState(null, '', hash);
+  history.replaceState(null, '', state.view === 'users' ? '#/users' : personHash(state.personId, state.folderId));
   await render();
 }
 
@@ -187,8 +226,10 @@ function showAuth(setupRequired) {
   el.innerHTML = `
     <form class="auth-card">
       <div class="brand big"><span class="logo">D</span>DocuKaksh</div>
-      <h1>${setupRequired ? 'Create your account' : 'Sign in'}</h1>
-      <p class="muted">${setupRequired ? 'This is a new install. The account you create here owns all documents.' : 'Enter your credentials to continue.'}</p>
+      <h1>${setupRequired ? 'Create the super admin' : 'Sign in'}</h1>
+      <p class="muted">${setupRequired
+        ? 'This is a new install. The account you create here is the super admin, who can add other users.'
+        : 'Enter your email and password to continue.'}</p>
       <label class="field"><span>Email</span><input name="email" type="email" required autocomplete="username"></label>
       <label class="field"><span>Password</span><input name="password" type="password" required minlength="8" autocomplete="${setupRequired ? 'new-password' : 'current-password'}"></label>
       <button class="btn primary wide" type="submit">${setupRequired ? 'Create account' : 'Sign in'}</button>
@@ -209,6 +250,15 @@ function showAuth(setupRequired) {
   });
 }
 
+async function logout() {
+  await api('/auth/logout', { method: 'POST' }).catch(() => null);
+  state.user = null;
+  state.persons = [];
+  closeDrawer();
+  history.replaceState(null, '', location.pathname);
+  boot();
+}
+
 // ---- Persons -------------------------------------------------------------
 
 async function refreshPersons() {
@@ -219,15 +269,16 @@ function renderPersons() {
   const nav = $('#person-list');
   if (!state.persons.length) {
     nav.innerHTML = '<p class="muted small pad">No persons yet</p>';
-    return;
+  } else {
+    nav.innerHTML = state.persons.map((p) => `
+      <button class="person${state.view === 'files' && p.id === state.personId ? ' active' : ''}" type="button" data-person="${p.id}">
+        <span class="dot" data-color="${esc(p.color)}"></span>
+        <span class="pname">${esc(p.name)}</span>
+        <span class="count">${p.file_count}</span>
+      </button>`).join('');
+    nav.querySelectorAll('.dot').forEach((dot) => { dot.style.background = dot.dataset.color; });
   }
-  nav.innerHTML = state.persons.map((p) => `
-    <button class="person${p.id === state.personId ? ' active' : ''}" type="button" data-person="${p.id}">
-      <span class="dot" data-color="${esc(p.color)}"></span>
-      <span class="pname">${esc(p.name)}</span>
-      <span class="count">${p.file_count}</span>
-    </button>`).join('');
-  nav.querySelectorAll('.dot').forEach((dot) => { dot.style.background = dot.dataset.color; });
+  $('#nav-users').classList.toggle('active', state.view === 'users');
 }
 
 async function newPerson() {
@@ -292,15 +343,28 @@ async function deletePerson() {
   }
 }
 
+async function personMenu() {
+  const choice = await openSheet(currentPerson()?.name ?? 'Person', [
+    { value: 'edit', label: 'Edit name and colour' },
+    { value: 'delete', label: 'Delete person', danger: true },
+  ]);
+  if (choice === 'edit') return editPerson();
+  if (choice === 'delete') return deletePerson();
+}
+
 // ---- Rendering -----------------------------------------------------------
 
 async function render() {
   const token = ++renderToken;
   renderPersons();
+  const isUsers = state.view === 'users';
   const hasPersons = state.persons.length > 0;
-  $('#toolbar').classList.toggle('hidden', !hasPersons);
+  $('#toolbar').classList.toggle('hidden', isUsers || !hasPersons);
+  $('#users-toolbar').classList.toggle('hidden', !isUsers);
+  $('#search').classList.toggle('hidden', isUsers);
   $('#crumbs').innerHTML = '';
 
+  if (isUsers) return renderUsers(token);
   if (state.query) return renderSearch(token);
   if (!hasPersons) return renderEmpty();
 
@@ -330,35 +394,58 @@ function renderCrumbs({ person, breadcrumb }) {
   $('#crumbs').innerHTML = parts.join('');
 }
 
+// One row layout for files, folders, search results and users.
+function rowHtml({ kind, id, icon, iconClass = '', label, meta, col1 = '', col2 = '', attrs = '' }) {
+  return `
+    <div class="row" data-kind="${kind}" data-id="${id}" tabindex="0" ${attrs}>
+      <span class="name">
+        <span class="icon ${iconClass}">${icon}</span>
+        <span class="text"><span class="label">${esc(label)}</span><span class="meta">${meta}</span></span>
+      </span>
+      <span class="col">${col1}</span>
+      <span class="col">${col2}</span>
+      <button class="kebab" type="button" data-kebab aria-label="More actions for ${esc(label)}">⋯</button>
+    </div>`;
+}
+
+function listHtml(headers, rows) {
+  return `
+    <div class="list">
+      <div class="row head"><span class="name">${headers[0]}</span><span class="col">${headers[1]}</span><span class="col">${headers[2]}</span><span class="kebab-spacer"></span></div>
+      ${rows}
+    </div>`;
+}
+
 function renderBrowse({ folders, files }) {
   const content = $('#content');
   if (!folders.length && !files.length) {
     content.innerHTML = `
       <div class="empty">
         <h2>This folder is empty</h2>
-        <p class="muted">Drop files anywhere on this page or click Upload. Create subfolders to keep things organised.</p>
+        <p class="muted">Upload files, or create a subfolder to keep things organised.</p>
       </div>`;
     return;
   }
-  const folderRows = folders.map((f) => `
-    <div class="row" data-kind="folder" data-id="${f.id}" tabindex="0">
-      <span class="name"><span class="icon folder">${FOLDER_ICON}</span><span class="label">${esc(f.name)}</span></span>
-      <span class="hide-sm muted small">Folder</span>
-      <span class="hide-sm muted small">${formatDate(f.created_at)}</span>
-      <span class="actions">${actionButtons(['rename', 'move', 'delete'])}</span>
-    </div>`).join('');
-  const fileRows = files.map((f) => `
-    <div class="row" data-kind="file" data-id="${f.id}" tabindex="0">
-      <span class="name"><span class="icon">${extBadge(f.name)}</span><span class="label">${esc(f.name)}</span></span>
-      <span class="hide-sm muted small">${formatSize(f.size)}</span>
-      <span class="hide-sm muted small">${formatDate(f.created_at)}</span>
-      <span class="actions">${actionButtons(['preview', 'download', 'rename', 'move', 'delete'])}</span>
-    </div>`).join('');
-  content.innerHTML = `
-    <div class="list">
-      <div class="row head"><span>Name</span><span>Size</span><span>Added</span><span></span></div>
-      ${folderRows}${fileRows}
-    </div>`;
+  const folderRows = folders.map((f) => rowHtml({
+    kind: 'folder',
+    id: f.id,
+    icon: FOLDER_ICON,
+    iconClass: 'folder',
+    label: f.name,
+    meta: `Folder · ${esc(formatDate(f.created_at))}`,
+    col1: 'Folder',
+    col2: esc(formatDate(f.created_at)),
+  })).join('');
+  const fileRows = files.map((f) => rowHtml({
+    kind: 'file',
+    id: f.id,
+    icon: extBadge(f.name),
+    label: f.name,
+    meta: `${esc(formatSize(f.size))} · ${esc(formatDate(f.created_at))}`,
+    col1: esc(formatSize(f.size)),
+    col2: esc(formatDate(f.created_at)),
+  })).join('');
+  content.innerHTML = listHtml(['Name', 'Size', 'Added'], folderRows + fileRows);
 }
 
 function renderEmpty() {
@@ -370,39 +457,52 @@ function renderEmpty() {
     </div>`;
 }
 
-const ACTION_LABELS = {
-  preview: 'Preview',
-  download: 'Download',
-  reveal: 'Open folder',
-  rename: 'Rename',
-  move: 'Move',
-  delete: 'Delete',
-};
-
-function actionButtons(actions) {
-  return actions.map((a) => `<button class="btn ghost" type="button" data-action="${a}">${ACTION_LABELS[a]}</button>`).join('');
-}
-
 async function renderSearch(token) {
   const results = await api(`/search?q=${encodeURIComponent(state.query)}`);
   if (token !== renderToken) return;
-  $('#crumbs').innerHTML = `<span class="muted">Results for “${esc(state.query)}”</span>`;
+  $('#crumbs').innerHTML = `<span class="crumb-static">Results for “${esc(state.query)}”</span>`;
   if (!results.length) {
     $('#content').innerHTML = '<div class="empty"><h2>No matching files</h2><p class="muted">Try a different name.</p></div>';
     return;
   }
   const rows = results.map((f) => {
     const where = [f.person_name, f.folder_name].filter(Boolean).join(' / ');
-    return `
-      <div class="row" data-kind="file" data-id="${f.id}" data-person="${f.person_id}" data-folder="${f.folder_id ?? ''}" tabindex="0">
-        <span class="name"><span class="icon">${extBadge(f.name)}</span>
-          <span class="label">${esc(f.name)}<br><span class="where muted">${esc(where)}</span></span></span>
-        <span class="hide-sm muted small">${formatSize(f.size)}</span>
-        <span class="hide-sm muted small">${formatDate(f.created_at)}</span>
-        <span class="actions">${actionButtons(['preview', 'download', 'reveal', 'delete'])}</span>
-      </div>`;
+    return rowHtml({
+      kind: 'file',
+      id: f.id,
+      icon: extBadge(f.name),
+      label: f.name,
+      meta: `${esc(where)} · ${esc(formatSize(f.size))}`,
+      col1: esc(where),
+      col2: esc(formatDate(f.created_at)),
+      attrs: `data-search="1" data-person="${f.person_id}" data-folder="${f.folder_id ?? ''}"`,
+    });
   }).join('');
-  $('#content').innerHTML = `<div class="list">${rows}</div>`;
+  $('#content').innerHTML = listHtml(['Name', 'Location', 'Added'], rows);
+}
+
+async function renderUsers(token) {
+  $('#crumbs').innerHTML = '<span class="crumb-static">Users</span>';
+  const users = await api('/users');
+  if (token !== renderToken) return;
+  const rows = users.map((u) => {
+    const self = u.id === state.user.id;
+    const roleLabel = ROLE_LABELS[u.role] ?? u.role;
+    const status = u.active ? 'Active' : 'Disabled';
+    const counts = `${u.person_count} persons · ${u.file_count} files`;
+    return rowHtml({
+      kind: 'user',
+      id: u.id,
+      icon: esc(u.email.charAt(0)),
+      iconClass: 'user',
+      label: self ? `${u.email} (you)` : u.email,
+      meta: `${esc(roleLabel)} · ${status} · ${counts}`,
+      col1: `<span class="badge${u.role === 'super_admin' ? ' admin' : ''}">${esc(roleLabel)}</span>`,
+      col2: u.active ? `<span class="muted">${status}</span>` : '<span class="badge off">Disabled</span>',
+      attrs: `data-email="${esc(u.email)}" data-role="${u.role}" data-active="${u.active}" data-self="${self ? 1 : 0}"`,
+    });
+  }).join('');
+  $('#content').innerHTML = listHtml(['Account', 'Role', 'Status'], rows);
 }
 
 // ---- Item actions ----------------------------------------------------------
@@ -476,6 +576,46 @@ async function remove(kind, id) {
   render();
 }
 
+// Menu for a file or folder row. Search results offer fewer actions.
+function documentMenuItems(row) {
+  const kind = row.dataset.kind;
+  if (row.dataset.search) {
+    return [
+      { value: 'preview', label: 'Preview' },
+      { value: 'download', label: 'Download' },
+      { value: 'reveal', label: 'Open folder' },
+      { value: 'delete', label: 'Delete', danger: true },
+    ];
+  }
+  const edit = [{ value: 'rename', label: 'Rename' }, { value: 'move', label: 'Move' }];
+  const del = [{ value: 'delete', label: 'Delete', danger: true }];
+  if (kind === 'folder') return [...edit, ...del];
+  return [{ value: 'preview', label: 'Preview' }, { value: 'download', label: 'Download' }, ...edit, ...del];
+}
+
+function userMenuItems(row) {
+  if (row.dataset.self === '1') return [];
+  const items = [{ value: 'reset', label: 'Reset password' }];
+  items.push({ value: 'toggle', label: row.dataset.active === '1' ? 'Disable account' : 'Enable account' });
+  items.push({
+    value: 'role',
+    label: row.dataset.role === 'super_admin' ? 'Remove super admin role' : 'Make super admin',
+  });
+  items.push({ value: 'delete', label: 'Delete account and all its data', danger: true });
+  return items;
+}
+
+async function openRowMenu(row) {
+  const isUser = row.dataset.kind === 'user';
+  const title = isUser ? row.dataset.email : row.querySelector('.label').textContent.trim();
+  const items = isUser ? userMenuItems(row) : documentMenuItems(row);
+  if (!items.length) return toast('No actions available for your own account', true);
+  const choice = await openSheet(title, items);
+  if (!choice) return;
+  if (isUser) return userAction(choice, row);
+  return rowAction(choice, row);
+}
+
 async function rowAction(action, row) {
   const kind = row.dataset.kind;
   const id = Number(row.dataset.id);
@@ -493,9 +633,106 @@ async function rowAction(action, row) {
   }
 }
 
+async function newUser() {
+  const result = await formModal({
+    title: 'New user',
+    fields: [
+      { name: 'email', label: 'Email', type: 'email' },
+      { name: 'password', label: 'Temporary password (8+ characters)', type: 'password' },
+      {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        value: 'user',
+        options: [
+          { value: 'user', label: 'User (manages own documents)' },
+          { value: 'super_admin', label: 'Super admin (also manages users)' },
+        ],
+      },
+    ],
+    submit: 'Create user',
+  });
+  if (!result) return;
+  try {
+    await api('/users', { method: 'POST', body: result });
+    toast('User created. Share the temporary password securely.');
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function userAction(action, row) {
+  const id = Number(row.dataset.id);
+  const email = row.dataset.email;
+  try {
+    if (action === 'reset') {
+      const result = await formModal({
+        title: `Reset password for ${email}`,
+        message: 'Their existing sessions will be signed out.',
+        fields: [{ name: 'password', label: 'New password (8+ characters)', type: 'password' }],
+        submit: 'Reset password',
+      });
+      if (!result) return;
+      await api(`/users/${id}/password`, { method: 'POST', body: result });
+      toast('Password reset');
+    } else if (action === 'toggle') {
+      const enable = row.dataset.active !== '1';
+      await api(`/users/${id}`, { method: 'PATCH', body: { active: enable } });
+      toast(enable ? 'Account enabled' : 'Account disabled');
+    } else if (action === 'role') {
+      const role = row.dataset.role === 'super_admin' ? 'user' : 'super_admin';
+      await api(`/users/${id}`, { method: 'PATCH', body: { role } });
+      toast('Role updated');
+    } else if (action === 'delete') {
+      const result = await formModal({
+        title: `Delete ${email}?`,
+        message: 'This permanently deletes the account and every person, folder and file it owns.',
+        submit: 'Delete account',
+        danger: true,
+      });
+      if (!result) return;
+      await api(`/users/${id}`, { method: 'DELETE' });
+      toast('Account deleted');
+    }
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function changePassword() {
+  const result = await formModal({
+    title: 'Change password',
+    message: 'Other devices will be signed out.',
+    fields: [
+      { name: 'current', label: 'Current password', type: 'password' },
+      { name: 'password', label: 'New password (8+ characters)', type: 'password' },
+    ],
+    submit: 'Change password',
+  });
+  if (!result) return;
+  try {
+    await api('/auth/password', { method: 'POST', body: result });
+    toast('Password changed');
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function accountMenu() {
+  const choice = await openSheet(state.user.email, [
+    { value: 'password', label: 'Change password' },
+    { value: 'logout', label: 'Sign out', danger: true },
+  ]);
+  if (choice === 'password') return changePassword();
+  if (choice === 'logout') return logout();
+}
+
 // ---- Upload ----------------------------------------------------------------
 
 function uploadFiles(fileList) {
+  if (state.view !== 'files') return toast('Open a person to upload files', true);
   if (!state.personId) return toast('Create a person first', true);
   const files = [...fileList];
   if (!files.length) return;
@@ -562,34 +799,38 @@ async function newFolder() {
 // ---- Event wiring ----------------------------------------------------------
 
 window.addEventListener('hashchange', () => {
-  const { personId, folderId } = parseHash();
-  state.personId = personId;
-  state.folderId = folderId;
-  if (!personId && state.persons.length) return go(state.persons[0].id, null);
+  const route = parseRoute();
+  state.view = route.view === 'users' && !can('users:manage') ? 'files' : route.view;
+  if (state.view === 'files') {
+    state.personId = route.personId;
+    state.folderId = route.folderId;
+    if (!route.personId && state.persons.length) return go(state.persons[0].id, null);
+  }
   render();
 });
 
+$('#menu-btn').addEventListener('click', () => {
+  if ($('#app').classList.contains('drawer-open')) closeDrawer();
+  else openDrawer();
+});
+$('#scrim').addEventListener('click', closeDrawer);
+$('#account-btn').addEventListener('click', accountMenu);
+
 $('#new-person').addEventListener('click', newPerson);
-$('#edit-person').addEventListener('click', editPerson);
-$('#delete-person').addEventListener('click', deletePerson);
+$('#person-more').addEventListener('click', personMenu);
 $('#new-folder').addEventListener('click', newFolder);
 $('#upload-btn').addEventListener('click', () => $('#file-input').click());
 $('#file-input').addEventListener('change', (e) => {
   uploadFiles(e.target.files);
   e.target.value = '';
 });
-
-$('#logout').addEventListener('click', async () => {
-  await api('/auth/logout', { method: 'POST' }).catch(() => null);
-  state.persons = [];
-  history.replaceState(null, '', location.pathname);
-  boot();
-});
+$('#new-user').addEventListener('click', newUser);
 
 $('#person-list').addEventListener('click', (e) => {
   const button = e.target.closest('[data-person]');
   if (button) go(Number(button.dataset.person), null);
 });
+$('#nav-users').addEventListener('click', () => navigate('#/users'));
 
 $('#crumbs').addEventListener('click', (e) => {
   const crumb = e.target.closest('[data-crumb]');
@@ -600,17 +841,14 @@ $('#content').addEventListener('click', (e) => {
   if (e.target.closest('[data-action="new-person"]')) return newPerson();
   const row = e.target.closest('.row[data-kind]');
   if (!row) return;
-  const action = e.target.closest('[data-action]');
-  if (action) {
-    e.stopPropagation();
-    return rowAction(action.dataset.action, row);
-  }
+  if (e.target.closest('[data-kebab]')) return openRowMenu(row);
+  if (row.dataset.kind === 'user') return;
   if (row.dataset.kind === 'folder') return go(state.personId, Number(row.dataset.id));
   return rowAction('preview', row);
 });
 
 $('#content').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target.matches('.row[data-kind]')) e.target.click();
+  if (e.key === 'Enter' && e.target.matches('.row[data-kind]') && e.target.dataset.kind !== 'user') e.target.click();
 });
 
 $('#search').addEventListener('input', (e) => {
@@ -621,7 +859,7 @@ $('#search').addEventListener('input', (e) => {
   }, 250);
 });
 
-// Drag and drop anywhere on the page.
+// Drag and drop on desktop browsers.
 document.addEventListener('dragenter', (e) => {
   if (!hasFiles(e)) return;
   dragDepth++;

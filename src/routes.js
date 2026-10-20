@@ -4,8 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import multer from 'multer';
 import {
-  SESSION_COOKIE, createSession, deleteSession, findSessionUser, hashPassword, verifyPassword,
+  SESSION_COOKIE, createSession, deleteSession, deleteUserSessions, findSessionUser,
+  hashPassword, verifyPassword,
 } from './auth.js';
+import { ROLES, can, permissionsFor } from './permissions.js';
 
 // Only these types are rendered inline. Anything else is served as a download, so an uploaded
 // HTML or SVG file can never run script on this origin.
@@ -56,6 +58,11 @@ function cleanEmail(value) {
 function cleanPassword(value) {
   if (typeof value !== 'string' || value.length < 8) throw badRequest('Password must be at least 8 characters');
   if (value.length > 200) throw badRequest('Password is too long');
+  return value;
+}
+
+function cleanRole(value) {
+  if (!ROLES.includes(value)) throw badRequest('Role must be one of: ' + ROLES.join(', '));
   return value;
 }
 
@@ -132,6 +139,24 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
     next();
   };
 
+  const requirePermission = (permission) => (req, _res, next) => {
+    if (can(req.user, permission)) return next();
+    next(new HttpError(403, 'You do not have permission to do that'));
+  };
+
+  const setPassword = (userId, password) => {
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), userId);
+  };
+
+  const getUser = (userId) => {
+    const row = db.prepare('SELECT id, email, role, active, created_at FROM users WHERE id = ?').get(userId);
+    if (!row) throw notFound('User not found');
+    return row;
+  };
+
+  const activeSuperAdminCount = () =>
+    db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'super_admin' AND active = 1").get().count;
+
   // Ownership checks. Every lookup is scoped to the signed-in user, so ids from other accounts look like 404s.
   const getPerson = (userId, personId) => {
     const row = db.prepare('SELECT * FROM persons WHERE id = ? AND user_id = ?').get(personId, userId);
@@ -183,29 +208,33 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
 
   router.get('/auth/status', (req, res) => {
     const user = findSessionUser(db, parseCookies(req.headers.cookie)[SESSION_COOKIE]);
-    res.json({ setupRequired: countUsers() === 0, user });
+    res.json({
+      setupRequired: countUsers() === 0,
+      user: user && { ...user, permissions: permissionsFor(user.role) },
+    });
   });
 
-  // Only available until the first account exists, so a public instance cannot be claimed later.
+  // Only available until the first account exists. That first account is the super admin.
   router.post('/auth/setup', (req, res) => {
     if (countUsers() > 0) throw new HttpError(409, 'Setup has already been completed');
     const email = cleanEmail(req.body?.email);
     const password = cleanPassword(req.body?.password);
-    const { lastInsertRowid } = db.prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
+    const { lastInsertRowid } = db.prepare("INSERT INTO users (email, password_hash, role) VALUES (?, ?, 'super_admin')")
       .run(email, hashPassword(password));
     issueSession(res, Number(lastInsertRowid));
-    res.status(201).json({ id: Number(lastInsertRowid), email });
+    res.status(201).json({ id: Number(lastInsertRowid), email, role: 'super_admin' });
   });
 
   router.post('/auth/login', (req, res) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
     const user = email ? db.prepare('SELECT * FROM users WHERE email = ?').get(email) : undefined;
-    if (!user || !verifyPassword(password, user.password_hash)) {
+    // Disabled accounts get the same message as a wrong password, so the account state is not revealed.
+    if (!user || !user.active || !verifyPassword(password, user.password_hash)) {
       throw new HttpError(401, 'Invalid email or password');
     }
     issueSession(res, user.id);
-    res.json({ id: user.id, email: user.email });
+    res.json({ id: user.id, email: user.email, role: user.role });
   });
 
   router.post('/auth/logout', (req, res) => {
@@ -424,6 +453,88 @@ export function createApiRouter({ db, uploadsDir, cookieSecure, maxUploadBytes }
       ORDER BY f.name COLLATE NOCASE
       LIMIT 100
     `).all(req.user.id, `%${escapeLike(q)}%`));
+  });
+
+  // ---- Own account ------------------------------------------------------
+
+  router.post('/auth/password', (req, res) => {
+    const row = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(req.user.id);
+    if (!verifyPassword(typeof req.body?.current === 'string' ? req.body.current : '', row.password_hash)) {
+      throw badRequest('Current password is incorrect');
+    }
+    setPassword(req.user.id, cleanPassword(req.body?.password));
+    // Changing the password signs out every other session, then gives this one a fresh token.
+    deleteUserSessions(db, req.user.id);
+    issueSession(res, req.user.id);
+    res.status(204).end();
+  });
+
+  // ---- User management (super admin only) -------------------------------
+
+  router.use('/users', requirePermission('users:manage'));
+
+  router.get('/users', (_req, res) => {
+    res.json(db.prepare(`
+      SELECT u.id, u.email, u.role, u.active, u.created_at,
+        (SELECT COUNT(*) FROM persons p WHERE p.user_id = u.id) AS person_count,
+        (SELECT COUNT(*) FROM files f JOIN persons p ON p.id = f.person_id WHERE p.user_id = u.id) AS file_count
+      FROM users u
+      ORDER BY u.id
+    `).all());
+  });
+
+  router.post('/users', (req, res) => {
+    const email = cleanEmail(req.body?.email);
+    const password = cleanPassword(req.body?.password);
+    const role = req.body?.role === undefined ? 'user' : cleanRole(req.body.role);
+    if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) {
+      throw new HttpError(409, 'A user with that email already exists');
+    }
+    const { lastInsertRowid } = db.prepare('INSERT INTO users (email, password_hash, role) VALUES (?, ?, ?)')
+      .run(email, hashPassword(password), role);
+    res.status(201).json(getUser(Number(lastInsertRowid)));
+  });
+
+  router.patch('/users/:id', (req, res) => {
+    const id = parseId(req.params.id);
+    const target = getUser(id);
+    const role = req.body?.role !== undefined ? cleanRole(req.body.role) : target.role;
+    const active = req.body?.active !== undefined ? (req.body.active ? 1 : 0) : target.active;
+    if (id === req.user.id && (role !== 'super_admin' || !active)) {
+      throw badRequest('You cannot remove your own super admin access or disable yourself');
+    }
+    const removesAdmin = target.role === 'super_admin' && target.active && (role !== 'super_admin' || !active);
+    if (removesAdmin && activeSuperAdminCount() <= 1) {
+      throw badRequest('The install must keep at least one active super admin');
+    }
+    db.prepare('UPDATE users SET role = ?, active = ? WHERE id = ?').run(role, active, id);
+    if (!active) deleteUserSessions(db, id);
+    res.json(getUser(id));
+  });
+
+  // Resets another user's password. Their existing sessions are signed out.
+  router.post('/users/:id/password', (req, res) => {
+    const id = parseId(req.params.id);
+    getUser(id);
+    setPassword(id, cleanPassword(req.body?.password));
+    deleteUserSessions(db, id);
+    res.status(204).end();
+  });
+
+  // Deletes the account, all of its persons, folders and files (including the stored blobs).
+  router.delete('/users/:id', (req, res) => {
+    const id = parseId(req.params.id);
+    const target = getUser(id);
+    if (id === req.user.id) throw badRequest('You cannot delete your own account');
+    if (target.role === 'super_admin' && target.active && activeSuperAdminCount() <= 1) {
+      throw badRequest('The install must keep at least one active super admin');
+    }
+    const stored = db.prepare(`
+      SELECT f.stored_name FROM files f JOIN persons p ON p.id = f.person_id WHERE p.user_id = ?
+    `).all(id);
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    removeStored(stored);
+    res.status(204).end();
   });
 
   // ---- Errors -----------------------------------------------------------

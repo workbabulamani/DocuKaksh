@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#4f46e5">
   <title>DocuKaksh</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/styles.css">
@@ -12,19 +13,31 @@
   <div id="auth" class="auth hidden"></div>
 
   <div id="app" class="app hidden">
-    <aside class="sidebar">
+    <div id="scrim" class="scrim"></div>
+
+    <aside id="sidebar" class="sidebar">
       <div class="brand"><span class="logo">D</span>DocuKaksh</div>
+
       <div class="side-head">
         <span>Persons</span>
         <button id="new-person" class="btn small" type="button">+ New</button>
       </div>
       <nav id="person-list" class="person-list" aria-label="Persons"></nav>
-      <button id="logout" class="btn ghost small side-foot" type="button">Sign out</button>
+
+      <div id="admin-section" class="side-section hidden">
+        <div class="side-head"><span>Admin</span></div>
+        <button id="nav-users" class="person" type="button" data-nav="users">
+          <span class="pname">Users</span>
+        </button>
+      </div>
+
+      <button id="account-btn" class="account" type="button" aria-label="Account options"></button>
     </aside>
 
     <main class="main">
       <header class="topbar">
-        <nav id="crumbs" class="crumbs" aria-label="Breadcrumb"></nav>
+        <button id="menu-btn" class="btn ghost menu-btn" type="button" aria-label="Open menu">☰</button>
+        <nav id="crumbs" class="crumbs" aria-label="Location"></nav>
         <input id="search" class="search" type="search" placeholder="Search all files" aria-label="Search all files">
       </header>
 
@@ -33,8 +46,13 @@
         <button id="upload-btn" class="btn primary" type="button">Upload</button>
         <input id="file-input" type="file" multiple hidden>
         <span class="grow"></span>
-        <button id="edit-person" class="btn ghost" type="button">Edit person</button>
-        <button id="delete-person" class="btn ghost danger-text" type="button">Delete person</button>
+        <button id="person-more" class="btn ghost" type="button" aria-label="Person options">Person ⋯</button>
+      </div>
+
+      <div id="users-toolbar" class="toolbar hidden">
+        <span class="muted">Accounts on this install</span>
+        <span class="grow"></span>
+        <button id="new-user" class="btn primary" type="button">New user</button>
       </div>
 
       <div id="upload-progress" class="progress hidden">
