@@ -130,6 +130,8 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
         text_size: user.text_size,
         contrast: user.contrast,
         density: user.density,
+        accent_primary: user.accent_primary,
+        accent_secondary: user.accent_secondary,
         mustChangePassword: user.must_change_password === 1,
         permissions: permissionsFor(user.role),
         pendingRequests: can(user, 'recovery:manage')
@@ -225,12 +227,21 @@ export function createApiRouter({ db, access, audit, vault, dataDir, incomingDir
 
   // Display preferences saved per account: theme, text size, contrast and density.
   router.patch('/auth/me', (req, res) => {
+    // Accent colours are either empty (theme default) or a #rrggbb colour.
+    for (const field of ['accent_primary', 'accent_secondary']) {
+      if (req.body?.[field] === undefined) continue;
+      const value = req.body[field];
+      if (value !== '' && !(typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value))) {
+        throw badRequest('Colour must be a #rrggbb value');
+      }
+      db.prepare(`UPDATE users SET ${field} = ? WHERE id = ?`).run(value, req.user.id);
+    }
     for (const [field, allowed] of Object.entries(PREFERENCES)) {
       if (req.body?.[field] === undefined) continue;
       if (!allowed.includes(req.body[field])) throw badRequest(`Unknown ${field.replace('_', ' ')}`);
       db.prepare(`UPDATE users SET ${field} = ? WHERE id = ?`).run(req.body[field], req.user.id);
     }
-    const row = db.prepare('SELECT theme, text_size, contrast, density FROM users WHERE id = ?').get(req.user.id);
+    const row = db.prepare('SELECT theme, text_size, contrast, density, accent_primary, accent_secondary FROM users WHERE id = ?').get(req.user.id);
     res.json(row);
   });
 

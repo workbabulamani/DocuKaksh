@@ -23,6 +23,27 @@ A lightweight, self-hosted document manager. Documents are grouped by **person**
 
 Everything secret or machine-specific lives in `.env`: the encryption key, the port, the data folder (`DATA_HOST_DIR`), upload size, recycle bin retention, and sign-in protection. `.env` is never copied into the image or committed.
 
+## Use it from other devices (phone, tablet, another computer)
+
+The app listens on every network interface (`HOST=0.0.0.0`). When it starts, it prints the addresses to use, for example:
+
+```
+On this computer:  http://localhost:3000
+On your network:   http://192.168.0.154:3000
+```
+
+Open the second address on the other device while it is on the same Wi-Fi or network.
+
+**If the other device cannot connect, Windows Firewall is blocking the port.** Allow it once, in PowerShell opened as administrator:
+
+```powershell
+New-NetFirewallRule -DisplayName "DocuKaksh" -Direction Inbound -Protocol TCP -LocalPort 3000 -Profile Private -Action Allow
+```
+
+Check that the Wi-Fi network is set to **Private** (Settings → Network & internet → Wi-Fi → your network). The firewall rule applies to Private networks only, which is the safe default for a home network.
+
+To allow only this computer, set `HOST=127.0.0.1` in `.env`.
+
 ## Where data is stored
 
 Inside the data folder (`DATA_HOST_DIR`, default `./docukaksh-data`):
@@ -110,12 +131,14 @@ Deleting a person, folder or file moves it to the bin, and everything inside it 
 
 Settings are in the account button at the bottom of the sidebar:
 
-- **Appearance**: ten themes (Day and Night are the defaults; also Nord, Dracula, Solarized Light and Dark, Gruvbox Dark, Catppuccin Mocha, Tokyo Night, Rosé Pine Dawn) and comfortable or compact density.
+- **Appearance**: sixteen themes. Day and Night are the defaults; the others are Nord, Dracula, Solarized Light and Dark, Gruvbox Dark, Catppuccin Mocha, Tokyo Night, Rosé Pine Dawn, One Dark, Monokai, GitHub Light, Everforest Light, Ayu Dark and Material Ocean. Also comfortable or compact density.
 - **Accessibility**: normal, large or extra large text, and high contrast.
 - **Account**: change password and sign out.
+- **Administration** (super admin, inside Settings): users, recovery requests, audit log and system health. The recycle bin stays in the sidebar.
+- **Accent colours**: pick a primary and a secondary colour, use a preset, or reset to the theme colours.
 - **About**: version and a summary of how data is protected.
 
-The sidebar collapses on desktop. When collapsed, each person shows as a colour circle with their initials (for example **SL** for Sagar Lamani).
+The sidebar collapses on desktop to an icon rail, where each person shows as a colour circle with their initials (for example **SL** for Sagar Lamani). Drag the sidebar edge to change its width (or use the arrow keys when it has focus). The Persons group folds open and closed; Home, Shared with me, Starred and the Recycle bin stay fixed at the top. Click your name at the bottom of the sidebar for Settings and Sign out.
 
 ## Run without Docker
 

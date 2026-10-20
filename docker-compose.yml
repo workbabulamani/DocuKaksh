@@ -14,7 +14,8 @@ services:
       DATA_DIR: /data
       PORT: "3000"
     ports:
-      - "${PORT:-3000}:3000"
+      # 0.0.0.0 publishes the port to the network, so other devices can reach it.
+      - "0.0.0.0:${PORT:-3000}:3000"
     volumes:
       # All app data (database, encrypted uploads, previews) lives in this host folder.
       # Set DATA_HOST_DIR in .env to move it, for example to another drive.

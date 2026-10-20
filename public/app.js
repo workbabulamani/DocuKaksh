@@ -11,6 +11,12 @@ const THEMES = [
   { id: 'catppuccin-mocha', label: 'Catppuccin Mocha' },
   { id: 'tokyo-night', label: 'Tokyo Night' },
   { id: 'rose-pine-dawn', label: 'Rosé Pine Dawn' },
+  { id: 'one-dark', label: 'One Dark' },
+  { id: 'monokai', label: 'Monokai' },
+  { id: 'github-light', label: 'GitHub Light' },
+  { id: 'everforest-light', label: 'Everforest Light' },
+  { id: 'ayu-dark', label: 'Ayu Dark' },
+  { id: 'material-ocean', label: 'Material Ocean' },
 ];
 
 // Folder icons: 24-unit outline drawings. The ids must match src/icons.js.
@@ -72,6 +78,7 @@ const state = {
   selected: new Map(),
   retention: 30,
   auditFilters: {},
+  pending: 0,
 };
 
 let renderToken = 0;
@@ -182,12 +189,37 @@ function applyPrefs(prefs) {
   root.dataset.text = prefs.text_size ?? 'normal';
   root.dataset.contrast = prefs.contrast ?? 'normal';
   root.dataset.density = prefs.density ?? 'comfortable';
+  applyAccent(prefs);
+}
+
+// Custom accent colours override the theme. Empty values fall back to the theme.
+function applyAccent(prefs) {
+  const style = document.documentElement.style;
+  const primary = prefs.accent_primary;
+  const secondary = prefs.accent_secondary;
+  if (primary) {
+    style.setProperty('--accent', primary);
+    style.setProperty('--focus', primary);
+    style.setProperty('--accent-text', contrastText(primary));
+  } else {
+    style.removeProperty('--accent');
+    style.removeProperty('--focus');
+    style.removeProperty('--accent-text');
+  }
+  if (secondary) style.setProperty('--accent-hover', secondary);
+  else style.removeProperty('--accent-hover');
+}
+
+function contrastText(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const luminance = (((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255;
+  return luminance > 0.6 ? '#111827' : '#ffffff';
 }
 
 // ---- Routing ------------------------------------------------------------------------
 
-const VIEWS = ['home', 'shared', 'starred', 'users', 'recovery', 'trash', 'audit', 'system'];
-const ADMIN_VIEWS = ['users', 'recovery', 'trash', 'audit', 'system'];
+const VIEWS = ['home', 'shared', 'starred', 'trash'];
+const ADMIN_VIEWS = ['trash'];
 
 function parseRoute() {
   const hash = location.hash;
@@ -223,24 +255,32 @@ const go = (personId, folderId = null) => {
 
 // ---- Overlays ---------------------------------------------------------------------
 
+const overlayStack = [];
+
 function openOverlay(html, setup) {
   return new Promise((resolve) => {
-    const root = $('#modal-root');
+    const layer = document.createElement('div');
+    layer.className = 'overlay-layer';
+    layer.innerHTML = `<div class="backdrop">${html}</div>`;
+    $('#modal-root').appendChild(layer);
+    const isTop = () => overlayStack[overlayStack.length - 1] === close;
     const close = (value = null) => {
+      const index = overlayStack.indexOf(close);
+      if (index >= 0) overlayStack.splice(index, 1);
       document.removeEventListener('keydown', onKey);
-      root.innerHTML = '';
+      layer.remove();
       resolve(value);
     };
     const onKey = (e) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape' && isTop()) close();
     };
-    root.innerHTML = `<div class="backdrop">${html}</div>`;
-    root.querySelector('.backdrop').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) close();
+    overlayStack.push(close);
+    layer.querySelector('.backdrop').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget && isTop()) close();
     });
-    root.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => close()));
+    layer.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => close()));
     document.addEventListener('keydown', onKey);
-    setup?.(root, close);
+    setup?.(layer, close);
   });
 }
 
@@ -423,49 +463,93 @@ async function shareToApps(file) {
 
 // ---- Settings -------------------------------------------------------------------------------
 
-const SETTINGS_SECTIONS = [
-  ['appearance', 'Appearance'],
-  ['accessibility', 'Accessibility'],
-  ['account', 'Account'],
-  ['about', 'About'],
+const ACCENT_PRESETS = [
+  ['#4f46e5', '#818cf8'], ['#0d9488', '#5eead4'], ['#dc2626', '#fb7185'], ['#d97706', '#fbbf24'],
+  ['#16a34a', '#86efac'], ['#2563eb', '#7dd3fc'], ['#9333ea', '#c084fc'], ['#db2777', '#f9a8d4'],
 ];
+const ADMIN_TABS = [['users', 'Users'], ['recovery', 'Recovery requests'], ['audit', 'Audit log'], ['system', 'System']];
+const ACCENT_FALLBACK = '#4f46e5';
+
+let settingsCtx = null; // { section, sub, root, close } while the Settings window is open
+let adminToken = 0;
+
+function settingsSections() {
+  const sections = [['appearance', 'Appearance'], ['accessibility', 'Accessibility'], ['account', 'Account']];
+  if (isAdmin()) sections.push(['admin', 'Administration']);
+  sections.push(['about', 'About']);
+  return sections;
+}
 
 function openSettings(section = 'appearance') {
   return openOverlay(`
     <div class="settings" role="dialog" aria-modal="true" aria-label="Settings">
-      <div class="settings-row"><h2 class="grow">Settings</h2><button class="btn" type="button" data-close>Close</button></div>
+      <header class="settings-top">
+        <h2>Settings</h2>
+        <button class="btn" type="button" data-close>Close</button>
+      </header>
       <div class="settings-layout">
-        <nav class="settings-nav" aria-label="Settings sections">
-          ${SETTINGS_SECTIONS.map(([id, label]) => `<button type="button" data-section="${id}">${label}</button>`).join('')}
-        </nav>
+        <nav class="settings-nav" aria-label="Settings sections"></nav>
         <div class="settings-body" id="settings-body"></div>
       </div>
     </div>`, (root, close) => {
-    const show = (id) => {
-      root.querySelectorAll('[data-section]').forEach((b) => b.classList.toggle('active', b.dataset.section === id));
-      const body = root.querySelector('#settings-body');
-      body.innerHTML = settingsSection(id);
-      wireSettingsSection(body, close);
-    };
-    root.querySelectorAll('[data-section]').forEach((b) => b.addEventListener('click', () => show(b.dataset.section)));
-    show(section);
-  });
+    settingsCtx = { section, sub: 'users', root, close };
+    root.querySelector('.settings-nav').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-section]');
+      if (button) showSettingsSection(button.dataset.section);
+    });
+    const body = root.querySelector('#settings-body');
+    body.addEventListener('click', onSettingsBodyClick);
+    body.addEventListener('change', onSettingsBodyChange);
+    showSettingsSection(section);
+  }).finally(() => { settingsCtx = null; });
+}
+
+function showSettingsSection(id) {
+  if (!settingsCtx) return;
+  settingsCtx.section = id;
+  settingsCtx.root.querySelector('.settings-nav').innerHTML = settingsSections().map(([key, label]) =>
+    `<button type="button" data-section="${key}" class="${key === id ? 'active' : ''}" aria-current="${key === id}">${label}</button>`).join('');
+  renderSettingsBody();
+}
+
+function renderSettingsBody() {
+  if (!settingsCtx) return;
+  const body = settingsCtx.root.querySelector('#settings-body');
+  const scroll = body.scrollTop;
+  body.innerHTML = settingsSectionHtml(settingsCtx.section);
+  body.querySelectorAll('[data-bg]').forEach((el) => { el.style.background = el.dataset.bg; });
+  body.querySelectorAll('[data-color]').forEach((el) => { el.style.background = el.dataset.color; });
+  body.scrollTop = scroll;
+  if (settingsCtx.section === 'admin') renderAdminPanel();
 }
 
 const choiceButtons = (name, options, current) => options.map((o) =>
   `<button class="btn" type="button" data-pref="${name}" data-value="${o.id}" aria-pressed="${o.id === current}">${esc(o.label)}</button>`).join('');
 
-function settingsSection(id) {
+function settingsSectionHtml(id) {
   const user = state.user;
   if (id === 'appearance') {
+    const primary = user.accent_primary || currentAccent();
+    const secondary = user.accent_secondary || primary;
     return `
       <h2>Appearance</h2>
-      <p class="muted small">Day and Night are the defaults. Your choice is saved to your account.</p>
+      <p class="muted small">Day and Night are the defaults. Your choices are saved to your account.</p>
+      <h3>Theme</h3>
       <div class="theme-grid" role="group" aria-label="Theme">
         ${THEMES.map((t) => `
           <button class="theme-option${t.id === user.theme ? ' selected' : ''}" type="button" data-pref="theme" data-value="${t.id}" aria-pressed="${t.id === user.theme}">
             <span class="swatch" data-t="${t.id}"></span>${esc(t.label)}
           </button>`).join('')}
+      </div>
+      <h3>Accent colours</h3>
+      <p class="muted small">Primary colours buttons and highlights. Secondary colours hover and secondary highlights.</p>
+      <div class="accent-row">
+        <label class="accent-field"><span>Primary</span><input type="color" value="${esc(primary)}" data-accent-input="primary" aria-label="Primary accent colour"></label>
+        <label class="accent-field"><span>Secondary</span><input type="color" value="${esc(secondary)}" data-accent-input="secondary" aria-label="Secondary accent colour"></label>
+        <button class="btn small" type="button" data-accent-reset>Use theme colours</button>
+      </div>
+      <div class="accent-presets" role="group" aria-label="Accent presets">
+        ${ACCENT_PRESETS.map(([a, b]) => `<button class="accent-preset" type="button" data-accent-preset="${a},${b}" aria-label="Preset ${a} and ${b}"><span class="sw-p" data-bg="${a}"></span><span class="sw-s" data-bg="${b}"></span></button>`).join('')}
       </div>
       <h3>Density</h3>
       <div class="choice-row">${choiceButtons('density', [{ id: 'comfortable', label: 'Comfortable' }, { id: 'compact', label: 'Compact' }], user.density)}</div>`;
@@ -478,6 +562,15 @@ function settingsSection(id) {
       <div class="choice-row">${choiceButtons('text_size', [{ id: 'normal', label: 'Normal' }, { id: 'large', label: 'Large' }, { id: 'xlarge', label: 'Extra large' }], user.text_size)}</div>
       <h3>Contrast</h3>
       <div class="choice-row">${choiceButtons('contrast', [{ id: 'normal', label: 'Normal' }, { id: 'high', label: 'High contrast' }], user.contrast)}</div>`;
+  }
+  if (id === 'admin') {
+    return `
+      <h2>Administration</h2>
+      <p class="muted small">Tools for the super admin. The recycle bin is in the sidebar.</p>
+      <div class="admin-tabs" role="tablist" aria-label="Administration">
+        ${ADMIN_TABS.map(([key, label]) => `<button type="button" role="tab" data-sub="${key}" aria-selected="${settingsCtx.sub === key}" class="${settingsCtx.sub === key ? 'active' : ''}">${label}${key === 'recovery' && state.pending ? ` <span class="count">${state.pending}</span>` : ''}</button>`).join('')}
+      </div>
+      <div id="admin-panel" class="admin-panel"><p class="muted">Loading…</p></div>`;
   }
   if (id === 'account') {
     return `
@@ -501,33 +594,206 @@ function settingsSection(id) {
     </div>`;
 }
 
-function wireSettingsSection(body, close) {
-  body.querySelectorAll('[data-pref]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const field = button.dataset.pref;
-      const value = button.dataset.value;
-      try {
-        const prefs = await api('/auth/me', { method: 'PATCH', body: { [field]: value } });
-        Object.assign(state.user, prefs);
-        applyPrefs(state.user);
-        body.querySelectorAll(`[data-pref="${field}"]`).forEach((b) => {
-          const on = b.dataset.value === value;
-          b.setAttribute('aria-pressed', String(on));
-          b.classList.toggle('selected', on && field === 'theme');
-        });
-      } catch (err) {
-        toast(err.message, true);
-      }
+function currentAccent() {
+  const value = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : ACCENT_FALLBACK;
+}
+
+async function savePreference(body) {
+  const scrollBody = settingsCtx?.root.querySelector('#settings-body');
+  try {
+    const prefs = await api('/auth/me', { method: 'PATCH', body });
+    Object.assign(state.user, prefs);
+    applyPrefs(state.user);
+    renderSettingsBody();
+  } catch (err) {
+    toast(err.message, true);
+  }
+  void scrollBody;
+}
+
+function onSettingsBodyClick(e) {
+  const tab = e.target.closest('[data-sub]');
+  if (tab) {
+    settingsCtx.sub = tab.dataset.sub;
+    return renderSettingsBody();
+  }
+  const pref = e.target.closest('[data-pref]');
+  if (pref) return savePreference({ [pref.dataset.pref]: pref.dataset.value });
+  const preset = e.target.closest('[data-accent-preset]');
+  if (preset) {
+    const [primary, secondary] = preset.dataset.accentPreset.split(',');
+    return savePreference({ accent_primary: primary, accent_secondary: secondary });
+  }
+  if (e.target.closest('[data-accent-reset]')) return savePreference({ accent_primary: '', accent_secondary: '' });
+  if (e.target.closest('[data-admin-action="new-user"]')) return newUser();
+  if (e.target.closest('[data-change-password]')) {
+    settingsCtx.close();
+    return changePassword();
+  }
+  if (e.target.closest('[data-logout]')) {
+    settingsCtx.close();
+    return logout();
+  }
+  const kebab = e.target.closest('[data-kebab]');
+  if (kebab) return openRowMenu(kebab.closest('.row[data-kind]'));
+}
+
+function onSettingsBodyChange(e) {
+  if (!e.target.matches('[data-accent-input]')) return;
+  const body = settingsCtx.root.querySelector('#settings-body');
+  savePreference({
+    accent_primary: body.querySelector('[data-accent-input="primary"]').value,
+    accent_secondary: body.querySelector('[data-accent-input="secondary"]').value,
+  });
+}
+
+// ---- Administration panels (shown inside Settings) --------------------------------------
+
+async function renderAdminPanel() {
+  if (!settingsCtx || settingsCtx.section !== 'admin') return;
+  const panel = settingsCtx.root.querySelector('#admin-panel');
+  if (!panel) return;
+  const token = ++adminToken;
+  const builders = { users: adminUsersHtml, recovery: adminRecoveryHtml, audit: adminAuditHtml, system: adminSystemHtml };
+  try {
+    const html = await builders[settingsCtx.sub]();
+    if (token !== adminToken || !settingsCtx) return;
+    panel.innerHTML = html;
+    panel.querySelectorAll('[data-color]').forEach((el) => { el.style.background = el.dataset.color; });
+    wireAdminPanel(panel);
+  } catch (err) {
+    if (token === adminToken) panel.innerHTML = `<p class="error" role="alert">${esc(err.message)}</p>`;
+  }
+}
+
+function wireAdminPanel(panel) {
+  if (settingsCtx.sub !== 'audit') return;
+  const update = () => {
+    state.auditFilters = {
+      user_id: panel.querySelector('#audit-user').value,
+      action: panel.querySelector('#audit-action').value,
+      q: panel.querySelector('#audit-q').value.trim(),
+    };
+    renderAdminPanel();
+  };
+  panel.querySelector('#audit-user').addEventListener('change', update);
+  panel.querySelector('#audit-action').addEventListener('change', update);
+  let timer;
+  panel.querySelector('#audit-q').addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(update, 350);
+  });
+}
+
+async function adminUsersHtml() {
+  const users = await api('/users');
+  const rows = users.map((u) => {
+    const self = u.id === state.user.id;
+    const roleLabel = ROLE_LABELS[u.role] ?? u.role;
+    const status = u.active ? 'Active' : 'Disabled';
+    const counts = `${u.person_count} person${u.person_count === 1 ? '' : 's'} · ${u.file_count} file${u.file_count === 1 ? '' : 's'}`;
+    const flags = u.must_change_password ? ' · Must change password' : '';
+    return rowHtml({
+      kind: 'user',
+      id: u.id,
+      icon: esc(initials(u.email)),
+      iconClass: 'user',
+      label: self ? `${u.email} (you)` : u.email,
+      meta: `${esc(roleLabel)} · ${status} · ${counts}${flags}`,
+      col1: `<span class="badge${u.role === 'super_admin' ? ' admin' : ''}">${esc(roleLabel)}</span>`,
+      col2: u.active ? `<span class="muted">${status}</span>` : '<span class="badge off">Disabled</span>',
+      attrs: `data-email="${esc(u.email)}" data-role="${u.role}" data-active="${u.active ? 1 : 0}" data-self="${self ? 1 : 0}" data-person-ids="${esc(u.person_ids ?? '')}"`,
     });
-  });
-  body.querySelector('[data-change-password]')?.addEventListener('click', () => {
-    close();
-    changePassword();
-  });
-  body.querySelector('[data-logout]')?.addEventListener('click', () => {
-    close();
-    logout();
-  });
+  }).join('');
+  return `
+    <div class="admin-head">
+      <span class="muted small">${users.length} account${users.length === 1 ? '' : 's'} on this install</span>
+      <span class="grow"></span>
+      <button class="btn primary small" type="button" data-admin-action="new-user">New user</button>
+    </div>
+    ${rows ? `<div class="list">${rows}</div>` : '<div class="empty"><h2>No accounts</h2></div>'}`;
+}
+
+async function adminRecoveryHtml() {
+  const requests = await api('/recovery');
+  const pending = requests.filter((r) => r.status === 'pending').length;
+  updateRecoveryCount(pending);
+  if (!requests.length) {
+    return '<div class="empty"><h2>No requests</h2><p class="muted">When someone forgets their password and asks for help, the request appears here.</p></div>';
+  }
+  const rows = requests.map((r) => {
+    const badge = r.status === 'pending' ? '<span class="badge admin">Pending</span>'
+      : r.status === 'approved' ? '<span class="badge">Approved</span>' : '<span class="badge off">Rejected</span>';
+    return rowHtml({
+      kind: 'recovery',
+      id: r.id,
+      icon: esc(initials(r.email)),
+      iconClass: 'user',
+      label: r.email,
+      meta: `${r.note ? `“${esc(r.note)}” · ` : ''}${esc(formatDateTime(r.created_at))}`,
+      col1: badge,
+      col2: esc(formatDate(r.created_at)),
+      attrs: `data-status="${r.status}" data-email="${esc(r.email)}"`,
+    });
+  }).join('');
+  return `<p class="muted small">${pending} pending. Use ⋯ on a request to approve or reject it.</p><div class="list">${rows}</div>`;
+}
+
+async function adminAuditHtml() {
+  const users = await api('/users');
+  const filters = state.auditFilters;
+  const qs = new URLSearchParams();
+  if (filters.user_id) qs.set('user_id', filters.user_id);
+  if (filters.action) qs.set('action', filters.action);
+  if (filters.q) qs.set('q', filters.q);
+  const entries = await api(`/admin/audit?${qs}`);
+  const actions = Object.keys(ACTION_TEXT).sort();
+  return `
+    <div class="audit-filters">
+      <select id="audit-user" aria-label="User"><option value="">All users</option>${users.map((u) => `<option value="${u.id}"${String(filters.user_id) === String(u.id) ? ' selected' : ''}>${esc(u.email)}</option>`).join('')}</select>
+      <select id="audit-action" aria-label="Action"><option value="">All actions</option>${actions.map((a) => `<option value="${a}"${filters.action === a ? ' selected' : ''}>${esc(ACTION_TEXT[a])}</option>`).join('')}</select>
+      <input id="audit-q" type="search" placeholder="Name contains…" value="${esc(filters.q ?? '')}" aria-label="Name contains">
+    </div>
+    <p class="muted small">${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}, newest first</p>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Item</th></tr></thead>
+      <tbody>${entries.map((e) => `<tr>
+        <td>${esc(formatDateTime(e.created_at))}</td>
+        <td>${esc(e.user_email || 'System')}</td>
+        <td>${esc(ACTION_TEXT[e.action] ?? e.action)}</td>
+        <td>${esc(e.target_name || '—')}${e.detail ? `<div class="muted small">${esc(e.detail)}</div>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="4" class="muted">Nothing matches these filters.</td></tr>'}</tbody>
+    </table></div>`;
+}
+
+async function adminSystemHtml() {
+  const h = await api('/admin/health');
+  state.retention = h.bin_retention_days;
+  const usedPct = h.disk.total_bytes ? Math.round(((h.disk.total_bytes - h.disk.free_bytes) / h.disk.total_bytes) * 100) : 0;
+  const card = (big, label) => `<div class="card"><div class="big">${big}</div><div class="label-small">${label}</div></div>`;
+  return `
+    <div class="health-grid">
+      ${card(esc(formatSize(h.disk.free_bytes)), `Free disk space (${usedPct}% used)`)}
+      ${card(esc(formatSize(h.storage.files_bytes)), 'Encrypted files')}
+      ${card(esc(formatSize(h.storage.previews_bytes)), 'Preview cache')}
+      ${card(esc(formatSize(h.storage.database_bytes)), 'Database')}
+      ${card(h.counts.files, 'Files in use')}
+      ${card(h.counts.files_in_bin, 'Files in the bin')}
+      ${card(h.last_24_hours.uploads, 'Uploads, 24 h')}
+      ${card(h.last_24_hours.downloads, 'Downloads, 24 h')}
+      ${card(h.last_24_hours.sign_in_failures, 'Failed sign-ins, 24 h')}
+      ${card(h.last_24_hours.errors, 'Server errors, 24 h')}
+      ${card(h.accounts_locked_now, 'Accounts locked now')}
+      ${card(`${h.memory_mb} MB`, 'Memory in use')}
+    </div>
+    <dl class="kv">
+      <dt>App version</dt><dd>${esc(h.version)}</dd>
+      <dt>Node.js</dt><dd>${esc(h.node)}</dd>
+      <dt>Uptime</dt><dd>${esc(Math.round(h.uptime_seconds / 60))} min</dd>
+      <dt>Accounts · persons · folders · shares</dt><dd>${h.counts.users} · ${h.counts.persons} · ${h.counts.folders} · ${h.counts.shares}</dd>
+      <dt>Recycle bin retention</dt><dd>${h.bin_retention_days ? `${h.bin_retention_days} days` : 'kept forever'}</dd>
+    </dl>`;
 }
 
 async function changePassword() {
@@ -562,7 +828,6 @@ function closeDrawer() {
 function applySidebarState(collapsed) {
   $('#app').classList.toggle('sidebar-collapsed', collapsed);
   const btn = $('#collapse-btn');
-  btn.textContent = collapsed ? '»' : '«';
   btn.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
   btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
 }
@@ -577,7 +842,7 @@ function showAuthCard(html) {
   return el;
 }
 
-const brandHtml = () => '<div class="brand big"><span class="logo">D</span>DocuKaksh</div>';
+const brandHtml = () => '<div class="brand big"><span class="logo"><img src="/logo.svg" alt=""></span>DocuKaksh</div>';
 
 async function boot() {
   const status = await api('/auth/status');
@@ -589,11 +854,12 @@ async function boot() {
 
   $('#auth').classList.add('hidden');
   $('#app').classList.remove('hidden');
-  $('#admin-section').classList.toggle('hidden', !isAdmin());
+  $('#nav-trash').classList.toggle('hidden', !isAdmin());
   $('#new-person').classList.toggle('hidden', !isAdmin());
   $('#account-email').textContent = status.user.email;
   $('#avatar').textContent = initials(status.user.email);
   applySidebarState(readStore('dk-sidebar', false) && window.innerWidth > 900);
+  applySidebarWidth();
   updateRecoveryCount(status.user.pendingRequests);
 
   const route = parseRoute();
@@ -731,9 +997,8 @@ function renderPersons() {
 }
 
 function updateRecoveryCount(count) {
-  const badge = $('#recovery-count');
-  badge.textContent = count || '';
-  badge.classList.toggle('hidden', !count);
+  state.pending = count || 0;
+  $('#account-btn').classList.toggle('has-alert', state.pending > 0);
 }
 
 async function newPerson() {
@@ -838,11 +1103,14 @@ async function reorderPersons(draggedId, targetId) {
 
 async function render() {
   const token = ++renderToken;
+  await refreshPersons().catch(() => {});
   renderPersons();
+  $('#trash-toolbar').classList.toggle('hidden', state.view !== 'trash');
+  $('#trash-select-btn').textContent = state.selecting ? 'Done' : 'Select';
+  if (settingsCtx?.section === 'admin') renderAdminPanel();
   const isFiles = state.view === 'files';
   const inPerson = isFiles && (state.personId || state.folderId);
   $('#toolbar').classList.toggle('hidden', !inPerson);
-  $('#users-toolbar').classList.toggle('hidden', state.view !== 'users');
   $('#search').closest('.search-box').classList.toggle('hidden', ['users', 'system', 'audit'].includes(state.view));
   $('#person-settings').classList.toggle('hidden', !isFiles || !state.personId);
   $('#crumbs').innerHTML = '';
@@ -858,11 +1126,7 @@ async function render() {
   if (state.view === 'home') return renderHome(token);
   if (state.view === 'shared') return renderShared(token);
   if (state.view === 'starred') return renderStarred(token);
-  if (state.view === 'users') return renderUsers(token);
-  if (state.view === 'recovery') return renderRecovery(token);
   if (state.view === 'trash') return renderTrash(token);
-  if (state.view === 'audit') return renderAudit(token);
-  if (state.view === 'system') return renderSystem(token);
   if (state.query) return renderSearch(token);
   if (!state.personId && !state.folderId) {
     $('#content').innerHTML = '<div class="empty"><h2>Choose a person</h2><p class="muted">Pick a person in the sidebar, or see what is shared with you.</p></div>';
@@ -1188,67 +1452,11 @@ async function renderStarred(token) {
 
 // ---- Admin pages ---------------------------------------------------------------------------------
 
-async function renderUsers(token) {
-  staticCrumb('Users');
-  const users = await api('/users');
-  if (token !== renderToken) return;
-  $('#item-count').textContent = `${users.length} account${users.length === 1 ? '' : 's'}`;
-  const rows = users.map((u) => {
-    const self = u.id === state.user.id;
-    const roleLabel = ROLE_LABELS[u.role] ?? u.role;
-    const status = u.active ? 'Active' : 'Disabled';
-    const counts = `${u.person_count} person${u.person_count === 1 ? '' : 's'} · ${u.file_count} file${u.file_count === 1 ? '' : 's'}`;
-    const flags = u.must_change_password ? ' · Must change password' : '';
-    return rowHtml({
-      kind: 'user',
-      id: u.id,
-      icon: esc(initials(u.email)),
-      iconClass: 'user',
-      label: self ? `${u.email} (you)` : u.email,
-      meta: `${esc(roleLabel)} · ${status} · ${counts}${flags}`,
-      col1: `<span class="badge${u.role === 'super_admin' ? ' admin' : ''}">${esc(roleLabel)}</span>`,
-      col2: u.active ? `<span class="muted">${status}</span>` : '<span class="badge off">Disabled</span>',
-      attrs: `data-email="${esc(u.email)}" data-role="${u.role}" data-active="${u.active ? 1 : 0}" data-self="${self ? 1 : 0}" data-person-ids="${esc(u.person_ids ?? '')}"`,
-    });
-  }).join('');
-  $('#content').innerHTML = rows
-    ? `<div class="list">${rows}</div>`
-    : '<div class="empty"><h2>No accounts</h2></div>';
-}
-
-async function renderRecovery(token) {
-  staticCrumb('Recovery requests');
-  const requests = await api('/recovery');
-  if (token !== renderToken) return;
-  const pending = requests.filter((r) => r.status === 'pending').length;
-  updateRecoveryCount(pending);
-  $('#item-count').textContent = `${pending} pending`;
-  if (!requests.length) {
-    $('#content').innerHTML = '<div class="empty"><h2>No requests</h2><p class="muted">When someone forgets their password and asks for help, the request appears here.</p></div>';
-    return;
-  }
-  const rows = requests.map((r) => {
-    const badge = r.status === 'pending' ? '<span class="badge admin">Pending</span>'
-      : r.status === 'approved' ? '<span class="badge">Approved</span>' : '<span class="badge off">Rejected</span>';
-    return rowHtml({
-      kind: 'recovery',
-      id: r.id,
-      icon: esc(initials(r.email)),
-      iconClass: 'user',
-      label: r.email,
-      meta: `${r.note ? `“${esc(r.note)}” · ` : ''}${esc(formatDateTime(r.created_at))}`,
-      col1: badge,
-      col2: esc(formatDate(r.created_at)),
-      attrs: `data-status="${r.status}" data-email="${esc(r.email)}"`,
-    });
-  }).join('');
-  $('#content').innerHTML = `<div class="list">${rows}</div>`;
-}
-
 async function renderTrash(token) {
   staticCrumb('Recycle bin');
   const items = await api('/trash');
   if (token !== renderToken) return;
+  $('#trash-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'} in the bin`;
   $('#item-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
   if (!items.length) {
     $('#content').innerHTML = `<div class="empty"><h2>The recycle bin is empty</h2><p class="muted">Deleted persons, folders and files appear here until you restore them or delete them for good. Items older than ${esc(state.retention)} days are removed automatically.</p></div>`;
@@ -1270,90 +1478,6 @@ async function renderTrash(token) {
   }).join('');
   const header = '<div class="row head"><span class="pick-head"></span><span class="name">Item</span><span class="col">Location</span><span class="col">Deleted</span><span class="kebab-spacer"></span></div>';
   $('#content').innerHTML = `<div class="list">${header}${rows}</div>`;
-}
-
-async function renderAudit(token) {
-  staticCrumb('Audit log');
-  const users = await api('/users');
-  const filters = state.auditFilters;
-  const qs = new URLSearchParams();
-  if (filters.user_id) qs.set('user_id', filters.user_id);
-  if (filters.action) qs.set('action', filters.action);
-  if (filters.q) qs.set('q', filters.q);
-  const entries = await api(`/admin/audit?${qs}`);
-  if (token !== renderToken) return;
-  $('#item-count').textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} (newest first)`;
-  const actions = Object.keys(ACTION_TEXT).sort();
-  $('#content').innerHTML = `
-    <div class="audit-filters">
-      <select id="audit-user" aria-label="User"><option value="">All users</option>${users.map((u) => `<option value="${u.id}"${String(filters.user_id) === String(u.id) ? ' selected' : ''}>${esc(u.email)}</option>`).join('')}</select>
-      <select id="audit-action" aria-label="Action"><option value="">All actions</option>${actions.map((a) => `<option value="${a}"${filters.action === a ? ' selected' : ''}>${esc(ACTION_TEXT[a])}</option>`).join('')}</select>
-      <input id="audit-q" type="search" placeholder="Name contains…" value="${esc(filters.q ?? '')}" aria-label="Name contains">
-    </div>
-    <div class="table-wrap"><table class="table">
-      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Item</th></tr></thead>
-      <tbody>${entries.map((e) => `<tr>
-        <td>${esc(formatDateTime(e.created_at))}</td>
-        <td>${esc(e.user_email || 'System')}</td>
-        <td>${esc(ACTION_TEXT[e.action] ?? e.action)}</td>
-        <td>${esc(e.target_name || '—')}${e.detail ? `<div class="muted small">${esc(e.detail)}</div>` : ''}</td>
-      </tr>`).join('') || '<tr><td colspan="4" class="muted">Nothing matches these filters.</td></tr>'}</tbody>
-    </table></div>`;
-  const update = () => {
-    state.auditFilters = {
-      user_id: $('#audit-user').value,
-      action: $('#audit-action').value,
-      q: $('#audit-q').value.trim(),
-    };
-    render();
-  };
-  $('#audit-user').addEventListener('change', update);
-  $('#audit-action').addEventListener('change', update);
-  let timer;
-  $('#audit-q').addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(update, 350);
-  });
-}
-
-async function renderSystem(token) {
-  staticCrumb('System');
-  const h = await api('/admin/health');
-  if (token !== renderToken) return;
-  state.retention = h.bin_retention_days;
-  $('#item-count').textContent = '';
-  const usedPct = h.disk.total_bytes ? Math.round(((h.disk.total_bytes - h.disk.free_bytes) / h.disk.total_bytes) * 100) : 0;
-  const card = (big, label) => `<div class="card"><div class="big">${big}</div><div class="label-small">${label}</div></div>`;
-  $('#content').innerHTML = `
-    <div class="dash">
-      <div class="health-grid">
-        ${card(esc(formatSize(h.disk.free_bytes)), `Free disk space (${usedPct}% used)`)}
-        ${card(esc(formatSize(h.storage.files_bytes)), 'Encrypted files')}
-        ${card(esc(formatSize(h.storage.previews_bytes)), 'Preview cache')}
-        ${card(esc(formatSize(h.storage.database_bytes)), 'Database')}
-        ${card(h.counts.files, 'Files in use')}
-        ${card(h.counts.files_in_bin, 'Files in the bin')}
-        ${card(h.last_24_hours.uploads, 'Uploads, last 24 h')}
-        ${card(h.last_24_hours.downloads, 'Downloads, last 24 h')}
-        ${card(h.last_24_hours.sign_in_failures, 'Failed sign-ins, 24 h')}
-        ${card(h.last_24_hours.errors, 'Server errors, 24 h')}
-        ${card(h.accounts_locked_now, 'Accounts locked now')}
-        ${card(`${h.memory_mb} MB`, 'Memory in use')}
-      </div>
-      <section class="dash-section">
-        <h2>Details</h2>
-        <dl class="kv">
-          <dt>App version</dt><dd>${esc(h.version)}</dd>
-          <dt>Node.js</dt><dd>${esc(h.node)}</dd>
-          <dt>Uptime</dt><dd>${esc(Math.round(h.uptime_seconds / 60))} min</dd>
-          <dt>Accounts</dt><dd>${h.counts.users}</dd>
-          <dt>Persons</dt><dd>${h.counts.persons}</dd>
-          <dt>Folders</dt><dd>${h.counts.folders}</dd>
-          <dt>Shares</dt><dd>${h.counts.shares}</dd>
-          <dt>Recycle bin retention</dt><dd>${h.bin_retention_days ? `${h.bin_retention_days} days` : 'kept forever'}</dd>
-        </dl>
-      </section>
-    </div>`;
 }
 
 // ---- Item actions ----------------------------------------------------------------------------
@@ -1814,23 +1938,57 @@ function toggleSelect(kind, id, name, on) {
   else state.selected.delete(key);
 }
 
+// Bin rows select by the kind of item they hold (person, folder or file).
+const kindOf = (row) => (row.dataset.kind === 'trash' ? row.dataset.item : row.dataset.kind);
+const ignoreMissing = (err) => {
+  if (err.status !== 404) throw err;
+};
+
+function allVisibleSelected() {
+  const boxes = [...document.querySelectorAll('#content .row [data-pick]')];
+  return boxes.length > 0 && boxes.every((box) => box.checked);
+}
+
+// Selects every item on screen, or clears them all if they are all selected already.
+function selectAllVisible() {
+  const select = !allVisibleSelected();
+  document.querySelectorAll('#content .row').forEach((row) => {
+    const box = row.querySelector('[data-pick]');
+    if (!box) return;
+    box.checked = select;
+    row.classList.toggle('selected', select);
+    toggleSelect(kindOf(row), Number(row.dataset.id), row.querySelector('.label').textContent.trim(), select);
+  });
+  renderBulkBar();
+}
+
 function renderBulkBar() {
-  const count = state.selected.size;
   const bar = $('#bulk-bar');
-  bar.classList.toggle('hidden', !(state.selecting && count) || state.view !== 'files');
+  const files = state.view === 'files';
+  const trash = state.view === 'trash';
+  bar.classList.toggle('hidden', !(state.selecting && (files || trash)));
+  const count = state.selected.size;
   $('#bulk-count').textContent = `${count} selected`;
-  bar.querySelector('[data-bulk="delete"]').classList.toggle('hidden', !canWrite());
-  bar.querySelector('[data-bulk="move"]').classList.toggle('hidden', !canWrite());
-  bar.querySelector('[data-bulk="tag"]').classList.toggle('hidden', !canWrite());
+  bar.querySelectorAll('[data-bulk]').forEach((button) => {
+    const action = button.dataset.bulk;
+    let show = true;
+    if (['move', 'tag', 'delete'].includes(action)) show = files && canWrite();
+    if (['restore', 'purge'].includes(action)) show = trash;
+    button.classList.toggle('hidden', !show);
+    if (['move', 'tag', 'delete', 'restore', 'purge'].includes(action)) button.disabled = count === 0;
+  });
+  bar.querySelector('[data-bulk="select-all"]').textContent = allVisibleSelected() ? 'Deselect all' : 'Select all';
 }
 
 async function bulk(action) {
-  const items = [...state.selected.values()];
   if (action === 'clear') {
     state.selected.clear();
+    state.selecting = false;
     return render();
   }
-  if (!items.length) return;
+  if (action === 'select-all') return selectAllVisible();
+  const items = [...state.selected.values()];
+  if (!items.length) return toast('Select at least one item first', true);
   try {
     if (action === 'move') {
       const options = await moveTargets(null);
@@ -1864,12 +2022,75 @@ async function bulk(action) {
       });
       if (!result) return;
       for (const item of items) await api(`/${endpoint(item.kind)}/${item.id}`, { method: 'DELETE' });
+    } else if (action === 'restore') {
+      for (const item of items) await api(`/trash/${item.kind}/${item.id}/restore`, { method: 'POST' }).catch(ignoreMissing);
+      toast(`Restored ${items.length} item${items.length === 1 ? '' : 's'}`);
+    } else if (action === 'purge') {
+      const result = await formModal({
+        title: `Delete ${items.length} item${items.length === 1 ? '' : 's'} forever?`,
+        message: 'This cannot be undone. The stored files are removed from the server.',
+        submit: 'Delete forever',
+        danger: true,
+      });
+      if (!result) return;
+      for (const item of items) await api(`/trash/${item.kind}/${item.id}`, { method: 'DELETE' }).catch(ignoreMissing);
+      toast('Deleted forever');
     }
     state.selected.clear();
-    toast('Done');
     render();
   } catch (err) {
     toast(err.message, true);
+    render();
+  }
+}
+
+// Recycle bin toolbar: restore everything, or delete everything for good.
+const TRASH_ORDER = { person: 0, folder: 1, file: 2 };
+
+// Works through the bin one top-most item at a time, because restoring or deleting a person
+// also takes its contents out of the list.
+async function emptyBin(method) {
+  let count = 0;
+  for (let i = 0; i < 1000; i++) {
+    const items = await api('/trash');
+    if (!items.length) break;
+    items.sort((x, y) => TRASH_ORDER[x.kind] - TRASH_ORDER[y.kind]);
+    const item = items[0];
+    if (method === 'restore') await api(`/trash/${item.kind}/${item.id}/restore`, { method: 'POST' });
+    else await api(`/trash/${item.kind}/${item.id}`, { method: 'DELETE' });
+    count++;
+  }
+  return count;
+}
+
+async function trashToolbar(action) {
+  try {
+    if (action === 'select') {
+      state.selecting = !state.selecting;
+      if (!state.selecting) state.selected.clear();
+      return render();
+    }
+    if (action === 'restore-all') {
+      const count = await emptyBin('restore');
+      toast(count ? `Restored ${count} item${count === 1 ? '' : 's'}` : 'The recycle bin is empty');
+    } else if (action === 'purge-all') {
+      const items = await api('/trash');
+      if (!items.length) return toast('The recycle bin is empty');
+      const result = await formModal({
+        title: `Delete all ${items.length} item${items.length === 1 ? '' : 's'} forever?`,
+        message: 'This cannot be undone. The stored files are removed from the server.',
+        submit: 'Delete everything',
+        danger: true,
+      });
+      if (!result) return;
+      const count = await emptyBin('purge');
+      toast(`Deleted ${count} item${count === 1 ? '' : 's'} forever`);
+    }
+    state.selected.clear();
+    render();
+  } catch (err) {
+    toast(err.message, true);
+    render();
   }
 }
 
@@ -2148,6 +2369,7 @@ window.addEventListener('hashchange', () => {
   }
   if (ADMIN_VIEWS.includes(state.view) && !isAdmin()) state.view = 'home';
   state.selected.clear();
+  state.selecting = false;
   render();
 });
 
@@ -2160,8 +2382,9 @@ $('#collapse-btn').addEventListener('click', () => {
   const collapsed = !$('#app').classList.contains('sidebar-collapsed');
   writeStore('dk-sidebar', collapsed);
   applySidebarState(collapsed);
+  applySidebarWidth();
 });
-$('#account-btn').addEventListener('click', () => openSettings('appearance'));
+$('#account-btn').addEventListener('click', openAccountMenu);
 
 document.querySelectorAll('[data-nav]').forEach((b) => {
   b.addEventListener('click', () => navigate(`#/${b.dataset.nav}`));
@@ -2195,7 +2418,6 @@ $('#bulk-bar').addEventListener('click', (e) => {
   const button = e.target.closest('[data-bulk]');
   if (button) bulk(button.dataset.bulk);
 });
-$('#new-user').addEventListener('click', newUser);
 
 async function newUser() {
   const result = await formModal({
@@ -2264,15 +2486,13 @@ $('#content').addEventListener('click', (e) => {
     return prepareStarState(row).then(() => openRowMenu(row));
   }
   if (e.target.closest('[data-pick]')) return; // the change listener handles selection
-  if (['user', 'trash', 'recovery'].includes(row.dataset.kind)) return;
-  if (state.selecting && !row.dataset.search) {
+  if (state.selecting && !row.dataset.search && row.querySelector('[data-pick]')) {
     const box = row.querySelector('[data-pick]');
-    if (box) {
-      box.checked = !box.checked;
-      box.dispatchEvent(new Event('change', { bubbles: true }));
-    }
+    box.checked = !box.checked;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
     return;
   }
+  if (['user', 'trash', 'recovery'].includes(row.dataset.kind)) return;
   if (row.dataset.kind === 'folder') return go(state.personId, Number(row.dataset.id));
   if (row.dataset.kind === 'file') return rowAction('preview', row);
 });
@@ -2281,7 +2501,7 @@ $('#content').addEventListener('change', (e) => {
   const box = e.target.closest?.('[data-pick]');
   if (!box) return;
   const row = box.closest('.row');
-  toggleSelect(row.dataset.kind, Number(row.dataset.id), row.querySelector('.label').textContent.trim(), box.checked);
+  toggleSelect(kindOf(row), Number(row.dataset.id), row.querySelector('.label').textContent.trim(), box.checked);
   row.classList.toggle('selected', box.checked);
   renderBulkBar();
 });
@@ -2326,5 +2546,95 @@ api('/shared').then((items) => {
   badge.classList.toggle('hidden', !items.length);
 }).catch(() => {});
 
+// ---- Account menu, sidebar groups, sidebar width -----------------------------------
+
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 420;
+
+// Settings and sign out both live behind the account name at the bottom of the sidebar.
+async function openAccountMenu() {
+  const choice = await openSheet(state.user.email, [
+    { value: 'settings', label: 'Settings' },
+    { value: 'logout', label: 'Sign out', danger: true },
+  ]);
+  if (choice === 'settings') openSettings('appearance');
+  if (choice === 'logout') logout();
+}
+
+function applySidebarGroups() {
+  const group = document.querySelector('[data-group-box="persons"]');
+  const open = readStore('dk-group-persons', true);
+  group.classList.toggle('collapsed', !open);
+  group.querySelector('.group-toggle').setAttribute('aria-expanded', String(open));
+}
+
+function wireSidebarGroups() {
+  document.querySelector('[data-group="persons"]').addEventListener('click', () => {
+    writeStore('dk-group-persons', !readStore('dk-group-persons', true));
+    applySidebarGroups();
+  });
+  applySidebarGroups();
+}
+
+function applySidebarWidth() {
+  const app = $('#app');
+  if (window.innerWidth <= 900 || app.classList.contains('sidebar-collapsed')) {
+    app.style.removeProperty('--sidebar-w');
+    return;
+  }
+  const width = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, readStore('dk-sidebar-w', 256)));
+  app.style.setProperty('--sidebar-w', `${width}px`);
+  $('#resizer').setAttribute('aria-valuenow', String(width));
+}
+
+// Drag the sidebar's right edge (or use the arrow keys when it has focus) to change its width.
+function wireResizer() {
+  const handle = $('#resizer');
+  const app = $('#app');
+  const clamp = (w) => Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, Math.round(w)));
+  const canResize = () => window.innerWidth > 900 && !app.classList.contains('sidebar-collapsed');
+  const currentWidth = () => $('#sidebar').getBoundingClientRect().width;
+
+  handle.addEventListener('pointerdown', (e) => {
+    if (!canResize()) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    app.classList.add('resizing');
+    const startX = e.clientX;
+    const startWidth = currentWidth();
+    let width = startWidth;
+    const move = (ev) => {
+      width = clamp(startWidth + (ev.clientX - startX));
+      app.style.setProperty('--sidebar-w', `${width}px`);
+    };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      app.classList.remove('resizing');
+      writeStore('dk-sidebar-w', width);
+      applySidebarWidth();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  });
+
+  handle.addEventListener('keydown', (e) => {
+    if (!canResize() || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault();
+    writeStore('dk-sidebar-w', clamp(currentWidth() + (e.key === 'ArrowRight' ? 16 : -16)));
+    applySidebarWidth();
+  });
+  window.addEventListener('resize', applySidebarWidth);
+}
+
+$('#trash-toolbar').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-trash]');
+  if (button) trashToolbar(button.dataset.trash);
+});
+
 wireDragAndDrop();
+wireSidebarGroups();
+wireResizer();
 boot().catch((err) => toast(err.message, true));

@@ -237,7 +237,7 @@ test('repeated failed sign-ins lock the account for a while, even with the right
 test('a preference is saved per account and unknown values are refused', async () => {
   let r = await call('PATCH', '/auth/me', { body: { text_size: 'xlarge', contrast: 'high', density: 'compact', theme: 'nord' } });
   assert.equal(r.status, 200);
-  assert.deepEqual(r.data, { theme: 'nord', text_size: 'xlarge', contrast: 'high', density: 'compact' });
+  assert.deepEqual(r.data, { theme: 'nord', text_size: 'xlarge', contrast: 'high', density: 'compact', accent_primary: '', accent_secondary: '' });
   r = await call('GET', '/auth/status');
   assert.equal(r.data.user.contrast, 'high');
   r = await call('PATCH', '/auth/me', { body: { density: 'cosy' } });
@@ -376,4 +376,19 @@ test('items in the recycle bin older than the retention period are removed on th
   second.close();
   second.db.close();
   fs.rmSync(bDir, { recursive: true, force: true });
+});
+
+test('accent colours are saved per account; anything other than #rrggbb or empty is refused', async () => {
+  let r = await call('PATCH', '/auth/me', { body: { accent_primary: '#0d9488', accent_secondary: '#5eead4' } });
+  assert.equal(r.status, 200);
+  assert.equal(r.data.accent_primary, '#0d9488');
+  r = await call('GET', '/auth/status');
+  assert.equal(r.data.user.accent_secondary, '#5eead4');
+  r = await call('PATCH', '/auth/me', { body: { accent_primary: 'red' } });
+  assert.equal(r.status, 400);
+  r = await call('PATCH', '/auth/me', { body: { accent_primary: '' } });
+  assert.equal(r.data.accent_primary, '', 'empty means use the theme colour');
+  r = await call('PATCH', '/auth/me', { body: { theme: 'material-ocean' } });
+  assert.equal(r.status, 200, 'the new themes are accepted');
+  await call('PATCH', '/auth/me', { body: { theme: 'day' } });
 });

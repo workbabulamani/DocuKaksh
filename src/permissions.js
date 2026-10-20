@@ -22,4 +22,5 @@ export const can = (user, permission) => permissionsFor(user?.role).includes(per
 export const THEMES = [
   'day', 'night', 'nord', 'dracula', 'solarized-light', 'solarized-dark',
   'gruvbox-dark', 'catppuccin-mocha', 'tokyo-night', 'rose-pine-dawn',
+  'one-dark', 'monokai', 'github-light', 'everforest-light', 'ayu-dark', 'material-ocean',
 ];

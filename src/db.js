@@ -183,6 +183,8 @@ function migrate(db) {
   ensureColumn(db, 'users', 'text_size', "TEXT NOT NULL DEFAULT 'normal'");
   ensureColumn(db, 'users', 'contrast', "TEXT NOT NULL DEFAULT 'normal'");
   ensureColumn(db, 'users', 'density', "TEXT NOT NULL DEFAULT 'comfortable'");
+  ensureColumn(db, 'users', 'accent_primary', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'accent_secondary', "TEXT NOT NULL DEFAULT ''");
 
   // Creators of existing persons keep access to them.
   db.exec(`

@@ -25,6 +25,8 @@ export function loadConfig(env = process.env) {
   }
   return {
     port: int(env.PORT, 3000),
+    // 0.0.0.0 accepts connections from other devices on the network. 127.0.0.1 allows this computer only.
+    host: env.HOST || '0.0.0.0',
     dataDir: path.resolve(env.DATA_DIR || path.join(root, 'data')),
     encryptionKey,
     cookieSecure: env.COOKIE_SECURE === 'true',

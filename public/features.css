@@ -218,3 +218,378 @@ html[data-text="xlarge"] { zoom: 1.3; }
 .row.head .pick-head { display: none; }
 .select-mode .row.head .pick-head { display: block; width: 22px; }
 .row.head .col { overflow: visible; }
+
+/* ---- Logo ------------------------------------------------------------------------- */
+
+.logo { background: none; color: inherit; width: 32px; height: 32px; padding: 0; border-radius: 0; }
+.logo img { width: 100%; height: 100%; display: block; }
+
+/* ---- Collapsible sidebar groups --------------------------------------------------- */
+
+.side-group { display: flex; flex-direction: column; min-height: 0; flex: 0 0 auto; }
+#persons-group { flex: 1 1 auto; }
+#persons-group.collapsed { flex: 0 0 auto; }
+.group-body { display: flex; flex-direction: column; min-height: 0; }
+#persons-group:not(.collapsed) .group-body { flex: 1 1 auto; }
+.side-group.collapsed .group-body { display: none; }
+.group-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.group-toggle:hover { color: var(--text); background: var(--surface-2); }
+.chevron { display: inline-block; transition: transform 0.15s; width: 12px; text-align: center; }
+.side-group.collapsed .chevron { transform: rotate(-90deg); }
+.app.sidebar-collapsed .group-toggle .chevron { display: none; }
+.app.sidebar-collapsed .side-group.collapsed .group-body { display: flex; }
+
+/* ---- Account button alert ---------------------------------------------------------- */
+
+.account { position: relative; }
+.account.has-alert::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 33px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+  border: 2px solid var(--surface-2);
+}
+
+/* ---- Resizable sidebar ------------------------------------------------------------ */
+
+.sidebar { overflow: visible; }
+@media (min-width: 901px) { .sidebar { position: relative; } }
+.sidebar > * { min-width: 0; }
+.person-list, .side-nav, .group-body { overflow-x: hidden; }
+.resizer {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+.resizer::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 2px;
+  height: 48px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizer:hover::after, .resizer:focus-visible::after, .app.resizing .resizer::after { background: var(--accent); }
+.resizer:focus-visible { outline: none; }
+.app.resizing { transition: none; }
+.app.resizing, .app.resizing * { cursor: col-resize !important; user-select: none; }
+.app.sidebar-collapsed .resizer { display: none; }
+@media (max-width: 900px) {
+  .resizer { display: none; }
+}
+
+/* ---- Settings: administration links ------------------------------------------------- */
+
+.admin-links { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 12px; }
+.admin-links .btn { justify-content: space-between; }
+.admin-links .count { margin-left: 8px; }
+
+/* ---- More themes ----------------------------------------------------------------------- */
+
+:root[data-theme="one-dark"] {
+  --bg: #282c34; --surface: #21252b; --surface-2: #2c313c; --text: #abb2bf; --muted: #8b929e;
+  --border: #3e4451; --accent: #61afef; --accent-hover: #7bbcf5; --accent-text: #282c34;
+  --danger: #e06c75; --focus: #61afef; --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
+}
+:root[data-theme="monokai"] {
+  --bg: #272822; --surface: #1f201b; --surface-2: #3e3d32; --text: #f8f8f2; --muted: #b3ae92;
+  --border: #49483e; --accent: #a6e22e; --accent-hover: #bfef5c; --accent-text: #272822;
+  --danger: #f92672; --focus: #66d9ef; --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+:root[data-theme="github-light"] {
+  --bg: #f6f8fa; --surface: #ffffff; --surface-2: #eaeef2; --text: #1f2328; --muted: #59636e;
+  --border: #d1d9e0; --accent: #0969da; --accent-hover: #0550ae; --accent-text: #ffffff;
+  --danger: #cf222e; --focus: #0969da; --shadow: 0 10px 30px rgba(31, 35, 40, 0.12);
+  color-scheme: light;
+}
+:root[data-theme="everforest-light"] {
+  --bg: #f3ead3; --surface: #fffbef; --surface-2: #efebd4; --text: #5c6a72; --muted: #7d8c7a;
+  --border: #e0dcc7; --accent: #8da101; --accent-hover: #6d8000; --accent-text: #fffbef;
+  --danger: #f85552; --focus: #3a94c5; --shadow: 0 10px 30px rgba(92, 106, 114, 0.15);
+  color-scheme: light;
+}
+:root[data-theme="ayu-dark"] {
+  --bg: #0b0e14; --surface: #0f1419; --surface-2: #1a1f29; --text: #bfbdb6; --muted: #7d8590;
+  --border: #253340; --accent: #e6b450; --accent-hover: #ffb454; --accent-text: #0b0e14;
+  --danger: #f07178; --focus: #59c2ff; --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+:root[data-theme="material-ocean"] {
+  --bg: #0f111a; --surface: #1a1c25; --surface-2: #232635; --text: #a6accd; --muted: #7b82a6;
+  --border: #292d3e; --accent: #82aaff; --accent-hover: #c792ea; --accent-text: #0f111a;
+  --danger: #f07178; --focus: #89ddff; --shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+.swatch[data-t="one-dark"] { background: linear-gradient(90deg, #282c34 50%, #61afef 50%); }
+.swatch[data-t="monokai"] { background: linear-gradient(90deg, #272822 50%, #a6e22e 50%); }
+.swatch[data-t="github-light"] { background: linear-gradient(90deg, #f6f8fa 50%, #0969da 50%); }
+.swatch[data-t="everforest-light"] { background: linear-gradient(90deg, #f3ead3 50%, #8da101 50%); }
+.swatch[data-t="ayu-dark"] { background: linear-gradient(90deg, #0b0e14 50%, #e6b450 50%); }
+.swatch[data-t="material-ocean"] { background: linear-gradient(90deg, #0f111a 50%, #82aaff 50%); }
+
+/* ==== Sidebar: fixed navigation, Persons is the only scrolling part ============== */
+
+.sidebar {
+  gap: 10px;
+  padding: 14px 12px;
+  overflow: visible;
+}
+.sidebar-head { min-height: 40px; }
+.side-nav { flex: 0 0 auto; overflow: hidden; gap: 2px; }
+.persons-group { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.persons-group .group-body { flex: 1 1 auto; min-height: 0; }
+.persons-group.collapsed { flex: 0 0 auto; }
+.persons-group .person-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.side-head { min-height: 32px; }
+.account { flex: 0 0 auto; }
+
+/* Collapse / expand control: clearly visible, in the accent colour. */
+.collapse-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  cursor: pointer;
+}
+.collapse-btn:hover { background: var(--accent); color: var(--accent-text); }
+.collapse-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
+.app.sidebar-collapsed .collapse-btn svg { transform: rotate(180deg); }
+.app.sidebar-collapsed .collapse-btn { margin: 0 auto; }
+.app.sidebar-collapsed .sidebar-head { flex-direction: column; align-items: center; gap: 10px; }
+
+/* Collapsed rail: every item is a centred square-ish tile, initials sit inside the tile. */
+.app.sidebar-collapsed { --sidebar-w: 72px; }
+.app.sidebar-collapsed .sidebar { padding: 12px 8px; align-items: stretch; }
+.app.sidebar-collapsed .nav-item {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 0;
+}
+.app.sidebar-collapsed .person {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  align-items: center;
+  min-height: 52px;
+  padding: 6px 0;
+}
+.app.sidebar-collapsed .person .initials {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+.app.sidebar-collapsed .person .count { display: none; }
+.app.sidebar-collapsed .account { justify-content: center; padding: 6px 0; min-height: 52px; }
+.app.sidebar-collapsed .account .avatar { width: 34px; height: 34px; }
+
+/* ==== Settings window: one fixed size for every section ========================== */
+
+.settings {
+  width: min(800px, calc(100vw - 32px));
+  height: min(640px, calc(100dvh - 32px));
+  padding: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  max-height: none;
+}
+.settings-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-top h2 { margin: 0; font-size: 18px; }
+.settings-layout {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  min-height: 0;
+}
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  min-height: 0;
+}
+.settings-nav button {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.settings-nav button:hover { background: var(--surface-2); }
+.settings-nav button.active { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); font-weight: 650; }
+.settings-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 24px;
+}
+.settings-body > h2 { margin: 0 0 4px; font-size: 18px; }
+.settings-body > h3 { margin: 18px 0 8px; }
+.settings-body .choice-row { margin: 4px 0 6px; }
+
+/* Administration tabs and panels inside Settings */
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.admin-tabs button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.admin-tabs button:hover { background: var(--surface-2); }
+.admin-tabs button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.admin-tabs .count { margin-left: 4px; }
+.admin-panel { min-width: 0; }
+.admin-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.admin-panel .list { margin-top: 4px; }
+.admin-panel .health-grid { margin-bottom: 14px; }
+.admin-panel .kv { margin-top: 4px; }
+.admin-panel .audit-filters { margin-bottom: 8px; }
+.admin-panel .table-wrap { max-height: 420px; overflow: auto; }
+
+/* Accent colours */
+.accent-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin: 8px 0 10px; }
+.accent-field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.accent-field input[type="color"] { width: 64px; height: 40px; padding: 2px; }
+.accent-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.accent-preset {
+  display: inline-flex;
+  width: 52px;
+  height: 34px;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--surface);
+}
+.accent-preset span { flex: 1; }
+.accent-preset:hover { border-color: var(--accent); }
+
+/* Small screens: the window fills the screen; navigation becomes a row of tabs */
+@media (max-width: 900px) {
+  .settings {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+    border: 0;
+  }
+  .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  .settings-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+  }
+  .settings-nav button { white-space: nowrap; min-height: 38px; }
+  .settings-body { padding: 14px 14px 24px; }
+  .admin-panel .table-wrap { max-height: none; }
+  .admin-tabs button { flex: 1 1 auto; }
+}
+
+/* ==== Visual polish ============================================================== */
+
+.nav-icon { color: var(--muted); }
+.nav-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.nav-item:hover .nav-icon, .nav-item.active .nav-icon { color: var(--accent); }
+.nav-item.active { box-shadow: inset 3px 0 0 var(--accent); }
+.group-toggle .chevron { width: 16px; height: 16px; }
+.group-toggle .chevron svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.side-group.collapsed .chevron { transform: rotate(-90deg); }
+
+.admin-panel .table td:nth-child(1), .admin-panel .table th:nth-child(1) { white-space: nowrap; }
+.admin-panel .table td:nth-child(2) { white-space: nowrap; overflow-wrap: normal; }
+.admin-panel .audit-filters input { flex: 1 1 220px; min-width: 200px; }
+.audit-filters select { min-width: 190px; }
+.activity-row { grid-template-columns: 168px minmax(0, 1fr); }
+.activity-row .when { white-space: nowrap; }
+.dash-section .dash-list button { padding-left: 10px; }
+@media (max-width: 900px) { .settings { padding-bottom: 0; } }
+
+/* The account button stays at the bottom of the sidebar, whether Persons is open or folded. */
+.sidebar > .account { margin-top: auto; }
+
+/* The menu button only exists on small screens. (Generic .btn rules used to override this.) */
+.btn.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .btn.menu-btn { display: inline-flex; width: 44px; height: 44px; padding: 0; font-size: 20px; }
+}
+
+/* Phones: the sidebar is a drawer that is out of the layout and fully hidden until opened. */
+@media (max-width: 900px) {
+  .sidebar { position: fixed; visibility: hidden; transition: transform 0.2s ease, visibility 0.2s; }
+  .drawer-open .sidebar { visibility: visible; }
+}
+
+/* Collapsed rail: the expand button has its own row above the navigation and is never covered by it. */
+.sidebar-head { position: relative; z-index: 3; }
+.collapse-btn { position: relative; z-index: 4; flex: 0 0 auto; }
+.side-nav { position: relative; z-index: 1; margin-top: 6px; }
+.app.sidebar-collapsed .sidebar-head { min-height: 0; padding-bottom: 6px; }
+.app.sidebar-collapsed .side-nav { margin-top: 10px; }

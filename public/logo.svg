@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="dk-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7c83ff"/>
+      <stop offset="1" stop-color="#312e81"/>
+    </linearGradient>
+    <linearGradient id="dk-page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e0e7ff"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded tile -->
+  <rect width="64" height="64" rx="16" fill="url(#dk-tile)"/>
+  <!-- Two pages behind, slightly rotated: a stack of documents -->
+  <path d="M21 13h16l8 8v22a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4z" fill="#c7d2fe" opacity="0.45" transform="rotate(-8 30 30)"/>
+  <path d="M21 13h16l8 8v22a4 4 0 0 1-4 4H21a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4z" fill="#e0e7ff" opacity="0.7" transform="rotate(-4 30 30)"/>
+  <!-- Front page with folded corner -->
+  <path d="M22 14h15l8 8v21a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4z" fill="url(#dk-page)"/>
+  <path d="M37 14v6a2 2 0 0 0 2 2h6" fill="#a5b4fc"/>
+  <!-- Keyhole: the documents are locked -->
+  <circle cx="30" cy="31" r="3.4" fill="#4338ca"/>
+  <path d="M28.4 33.6h3.2l1.2 7.2h-5.6z" fill="#4338ca"/>
+</svg>

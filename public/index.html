@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#4f46e5">
   <title>DocuKaksh</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/features.css">
 </head>
@@ -17,35 +17,37 @@
 
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
-        <div class="brand"><span class="logo">D</span><span class="brand-text">DocuKaksh</span></div>
-        <button id="collapse-btn" class="btn ghost icon-btn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">«</button>
+        <div class="brand"><span class="logo" aria-hidden="true"><img src="/logo.svg" alt=""></span><span class="brand-text">DocuKaksh</span></div>
+        <button id="collapse-btn" class="collapse-btn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar" aria-controls="sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
       </div>
 
       <nav class="side-nav" aria-label="Main">
-        <button class="nav-item" type="button" data-nav="home" title="Home"><span class="nav-icon">⌂</span><span class="side-label">Home</span></button>
-        <button class="nav-item" type="button" data-nav="shared" title="Shared with me"><span class="nav-icon">⇄</span><span class="side-label">Shared with me</span><span id="shared-count" class="count hidden"></span></button>
-        <button class="nav-item" type="button" data-nav="starred" title="Starred"><span class="nav-icon">★</span><span class="side-label">Starred</span></button>
+        <button class="nav-item" type="button" data-nav="home" title="Home"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span class="side-label">Home</span></button>
+        <button class="nav-item" type="button" data-nav="shared" title="Shared with me"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.6M8.2 13.2l7.6 4.6"/></svg></span><span class="side-label">Shared with me</span><span id="shared-count" class="count hidden"></span></button>
+        <button class="nav-item" type="button" data-nav="starred" title="Starred"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg></span><span class="side-label">Starred</span></button>
+        <button id="nav-trash" class="nav-item hidden" type="button" data-nav="trash" title="Recycle bin"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span><span class="side-label">Recycle bin</span></button>
       </nav>
 
-      <div class="side-head">
-        <span class="side-label">Persons</span>
-        <button id="new-person" class="btn small side-label" type="button">+ New</button>
-      </div>
-      <nav id="person-list" class="person-list" aria-label="Persons"></nav>
+      <section class="side-group persons-group" id="persons-group" data-group-box="persons">
+        <div class="side-head">
+          <button class="group-toggle" type="button" data-group="persons" aria-controls="persons-body" aria-expanded="true">
+            <span class="chevron" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span><span class="side-label">Persons</span>
+          </button>
+          <button id="new-person" class="btn small side-label" type="button">+ New</button>
+        </div>
+        <div class="group-body" id="persons-body">
+          <nav id="person-list" class="person-list" aria-label="Persons"></nav>
+        </div>
+      </section>
 
-      <div id="admin-section" class="side-section hidden">
-        <div class="side-head"><span class="side-label">Admin</span></div>
-        <button class="nav-item" type="button" data-nav="users" title="Users"><span class="nav-icon">👥</span><span class="side-label">Users</span></button>
-        <button class="nav-item" type="button" data-nav="recovery" title="Recovery requests"><span class="nav-icon">🔑</span><span class="side-label">Recovery</span><span id="recovery-count" class="count hidden"></span></button>
-        <button class="nav-item" type="button" data-nav="trash" title="Recycle bin"><span class="nav-icon">🗑</span><span class="side-label">Recycle bin</span></button>
-        <button class="nav-item" type="button" data-nav="audit" title="Audit log"><span class="nav-icon">≡</span><span class="side-label">Audit log</span></button>
-        <button class="nav-item" type="button" data-nav="system" title="System"><span class="nav-icon">⚙</span><span class="side-label">System</span></button>
-      </div>
-
-      <button id="account-btn" class="account" type="button" aria-label="Settings and account" title="Settings">
+      <button id="account-btn" class="account" type="button" aria-haspopup="menu" aria-label="Account menu" title="Account">
         <span class="avatar" id="avatar"></span>
         <span class="side-label account-email" id="account-email"></span>
       </button>
+
+      <div id="resizer" class="resizer" role="separator" aria-orientation="vertical" aria-label="Drag to resize the sidebar" aria-valuemin="200" aria-valuemax="420" tabindex="0"></div>
     </aside>
 
     <main class="main" id="main">
@@ -75,19 +77,24 @@
         </button>
       </div>
 
+      <div id="trash-toolbar" class="toolbar hidden">
+        <span id="trash-count" class="muted small"></span>
+        <span class="grow"></span>
+        <button id="trash-select-btn" class="btn" type="button" data-trash="select">Select</button>
+        <button class="btn" type="button" data-trash="restore-all">Restore all</button>
+        <button class="btn danger" type="button" data-trash="purge-all">Delete all forever</button>
+      </div>
+
       <div id="bulk-bar" class="bulk-bar hidden" role="toolbar" aria-label="Selected items">
         <span id="bulk-count"></span>
         <span class="grow"></span>
-        <button class="btn small" type="button" data-bulk="move">Move</button>
-        <button class="btn small" type="button" data-bulk="tag">Tag</button>
-        <button class="btn small danger" type="button" data-bulk="delete">Move to bin</button>
-        <button class="btn small ghost" type="button" data-bulk="clear">Clear</button>
-      </div>
-
-      <div id="users-toolbar" class="toolbar hidden">
-        <span class="muted small">Accounts on this install</span>
-        <span class="grow"></span>
-        <button id="new-user" class="btn primary" type="button">New user</button>
+        <button class="btn small" type="button" data-bulk="select-all">Select all</button>
+        <button class="btn small files-only" type="button" data-bulk="move">Move</button>
+        <button class="btn small files-only" type="button" data-bulk="tag">Tag</button>
+        <button class="btn small danger files-only" type="button" data-bulk="delete">Move to bin</button>
+        <button class="btn small trash-only" type="button" data-bulk="restore">Restore selected</button>
+        <button class="btn small danger trash-only" type="button" data-bulk="purge">Delete selected forever</button>
+        <button class="btn small ghost" type="button" data-bulk="clear">Done</button>
       </div>
 
       <div id="upload-progress" class="progress hidden">
