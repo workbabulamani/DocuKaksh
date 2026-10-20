@@ -6,8 +6,9 @@
 //   users:manage       create, disable, reset and delete accounts; assign persons
 //   recovery:manage    review "forgot password" requests
 //   trash:manage       open the recycle bin, restore and permanently delete
+//   system:manage     audit log, health and metrics page
 const PERMISSIONS = {
-  super_admin: ['documents', 'persons:manage', 'users:manage', 'recovery:manage', 'trash:manage'],
+  super_admin: ['documents', 'persons:manage', 'users:manage', 'recovery:manage', 'trash:manage', 'system:manage'],
   user: ['documents'],
 };
 

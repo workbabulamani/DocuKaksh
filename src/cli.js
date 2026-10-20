@@ -1,18 +1,23 @@
-// Command-line tools for the server machine. Run inside the container with:
+// Command-line tools for the server machine.
+//   npm run gen-key                              create an encryption key for .env
 //   docker compose exec docukaksh node src/cli.js reset-password admin@example.com
-// Use this when no other super admin is available to approve a recovery request.
+// reset-password is for when no other super admin can approve a recovery request.
 import crypto from 'node:crypto';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { openDatabase } from './db.js';
 import { hashPassword } from './auth.js';
+import { loadConfig } from './config.js';
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const dataDir = process.env.DATA_DIR || path.join(root, 'data');
-const [command, email] = process.argv.slice(2);
+const [command, argument] = process.argv.slice(2);
+
+function genKey() {
+  console.log(crypto.randomBytes(32).toString('base64'));
+  console.error('Put this in .env as ENCRYPTION_KEY. Keep a copy somewhere safe: without it the files cannot be opened.');
+}
 
 function resetPassword(address) {
-  const db = openDatabase(path.resolve(dataDir, 'docukaksh.db'));
+  const config = loadConfig();
+  const db = openDatabase(path.resolve(config.dataDir, 'docukaksh.db'));
   const user = db.prepare('SELECT id, email FROM users WHERE email = ?').get(address.trim().toLowerCase());
   if (!user) {
     console.error(`No account with email ${address}`);
@@ -28,9 +33,13 @@ function resetPassword(address) {
   db.close();
 }
 
-if (command === 'reset-password' && email) {
-  resetPassword(email);
+if (command === 'gen-key') {
+  genKey();
+} else if (command === 'reset-password' && argument) {
+  resetPassword(argument);
 } else {
-  console.log('Usage: node src/cli.js reset-password <email>');
+  console.log('Usage:');
+  console.log('  node src/cli.js gen-key');
+  console.log('  node src/cli.js reset-password <email>');
   process.exitCode = 1;
 }

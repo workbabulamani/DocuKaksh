@@ -5,3 +5,6 @@ docukaksh-data
 *.db-*
 .env
 docukaksh-data
+.env
+.env.*
+!.env.example

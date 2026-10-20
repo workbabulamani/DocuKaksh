@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -69,7 +70,7 @@ const pptxBytes = () => Buffer.from(zipSync({
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docukaksh-features-'));
-  const created = createApp({ dataDir });
+  const created = createApp({ dataDir, encryptionKey: crypto.randomBytes(32), loginMaxFailures: 1000 });
   db = created.db;
   await new Promise((resolve) => {
     server = created.app.listen(0, '127.0.0.1', resolve);

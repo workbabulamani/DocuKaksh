@@ -237,18 +237,19 @@ async function convertHeic(buffer) {
   return Buffer.from(out);
 }
 
-// Builds the preview for a stored file. Results are cached next to the uploads so
-// each file is converted once. Returns the cached file path and its response headers.
-export async function buildPreview({ converter, name, storedPath, cacheBase }) {
+// Builds the preview for a stored file. The converted result is cached, encrypted like the
+// uploads, so each file is converted once and nothing readable is left on disk.
+// readPlain() returns the decrypted original bytes.
+export async function buildPreview({ converter, name, readPlain, cacheBase, vault }) {
   if (converter === 'heic') {
     const cached = `${cacheBase}.jpg`;
-    if (!fs.existsSync(cached)) fs.writeFileSync(cached, await convertHeic(fs.readFileSync(storedPath)));
-    return { file: cached, contentType: 'image/jpeg', csp: "default-src 'none'; sandbox" };
+    if (!fs.existsSync(cached)) vault.encryptBuffer(cached, await convertHeic(readPlain()));
+    return { body: vault.decryptBuffer(cached), contentType: 'image/jpeg', csp: "default-src 'none'; sandbox" };
   }
 
   const cached = `${cacheBase}.html`;
   if (!fs.existsSync(cached)) {
-    const buffer = fs.readFileSync(storedPath);
+    const buffer = readPlain();
     let html;
     switch (converter) {
       case 'text': html = renderText(buffer); break;
@@ -259,7 +260,7 @@ export async function buildPreview({ converter, name, storedPath, cacheBase }) {
       case 'pptx': html = renderPptx(buffer); break;
       default: throw new Error(`Unknown converter ${converter}`);
     }
-    fs.writeFileSync(cached, html);
+    vault.encryptBuffer(cached, Buffer.from(html, 'utf8'));
   }
-  return { file: cached, contentType: 'text/html; charset=utf-8', csp: PAGE_CSP };
+  return { body: vault.decryptBuffer(cached), contentType: 'text/html; charset=utf-8', csp: PAGE_CSP };
 }

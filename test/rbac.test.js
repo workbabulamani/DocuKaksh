@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,7 +45,7 @@ async function userByEmail(email) {
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docukaksh-rbac-'));
-  const created = createApp({ dataDir });
+  const created = createApp({ dataDir, encryptionKey: crypto.randomBytes(32), loginMaxFailures: 1000 });
   db = created.db;
   await new Promise((resolve) => {
     server = created.app.listen(0, '127.0.0.1', resolve);
@@ -145,12 +146,12 @@ test('users can soft-delete documents but the recycle bin is admin only', async 
   const { data: persons } = await call('GET', '/persons', { cookie: session });
   const { data: browse } = await call('GET', `/persons/${persons[0].id}/browse`, { cookie: session });
   const folder = browse.folders.find((f) => f.name === 'Bills');
-  const { data: inside } = await call('GET', `/persons/${persons[0].id}/browse?folder_id=${folder.id}`, { cookie: session });
+  const { data: inside } = await call('GET', `/folders/${folder.id}/browse`, { cookie: session });
   const invoice = inside.files[0];
 
   let r = await call('DELETE', `/files/${invoice.id}`, { cookie: session });
   assert.equal(r.status, 204, 'users may delete');
-  r = await call('GET', `/persons/${persons[0].id}/browse?folder_id=${folder.id}`, { cookie: session });
+  r = await call('GET', `/folders/${folder.id}/browse`, { cookie: session });
   assert.equal(r.data.files.length, 0);
   r = await call('GET', '/trash', { cookie: session });
   assert.equal(r.status, 403, 'users cannot see or purge the bin');

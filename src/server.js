@@ -1,23 +1,36 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
+import { loadConfig } from './config.js';
 
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const port = Number(process.env.PORT) || 3000;
-const dataDir = process.env.DATA_DIR || path.join(root, 'data');
+let config;
+try {
+  config = loadConfig();
+} catch (err) {
+  console.error(`Configuration error: ${err.message}`);
+  process.exit(1);
+}
 
-const { app, db } = createApp({
-  dataDir,
-  cookieSecure: process.env.COOKIE_SECURE === 'true',
-  maxUploadMb: Number(process.env.MAX_UPLOAD_MB) || 100,
+if (!config.encryptionKey) {
+  console.error('ENCRYPTION_KEY is not set. Create one with: npm run gen-key, then put it in .env');
+  process.exit(1);
+}
+
+const { app, db, close } = createApp({
+  dataDir: config.dataDir,
+  encryptionKey: config.encryptionKey,
+  cookieSecure: config.cookieSecure,
+  maxUploadMb: config.maxUploadMb,
+  recycleRetentionDays: config.recycleRetentionDays,
+  loginMaxFailures: config.loginMaxFailures,
+  loginLockMinutes: config.loginLockMinutes,
 });
 
-const server = app.listen(port, () => {
-  console.log(`DocuKaksh listening on http://localhost:${port} (data: ${dataDir})`);
+const server = app.listen(config.port, () => {
+  console.log(`DocuKaksh listening on http://localhost:${config.port} (data: ${config.dataDir})`);
 });
 
 // Close the server and database cleanly so SQLite flushes its WAL when Docker stops the container.
 function shutdown() {
+  close();
   server.close(() => {
     db.close();
     process.exit(0);

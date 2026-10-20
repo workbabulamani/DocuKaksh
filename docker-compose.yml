@@ -4,20 +4,21 @@ services:
     image: docukaksh:latest
     container_name: docukaksh
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # Secrets and settings come from .env on the host. It is optional here so the file can be
+    # checked in without it, but the app refuses to start until ENCRYPTION_KEY is set.
+    env_file:
+      - path: .env
+        required: false
     environment:
+      # These are fixed inside the container, whatever .env says for the host.
       DATA_DIR: /data
-      # Set to "true" when the app is served over HTTPS (for example behind a reverse proxy).
-      COOKIE_SECURE: "false"
-      # Largest single file accepted for upload, in megabytes.
-      MAX_UPLOAD_MB: "100"
+      PORT: "3000"
+    ports:
+      - "${PORT:-3000}:3000"
     volumes:
-      # All app data lives in this host folder:
-      #   ./docukaksh-data/docukaksh.db   database (accounts, persons, folders, file records)
-      #   ./docukaksh-data/uploads/       the uploaded files
-      # To move or back up the app, stop it, copy this folder, and start it again elsewhere.
-      - ./docukaksh-data:/data
+      # All app data (database, encrypted uploads, previews) lives in this host folder.
+      # Set DATA_HOST_DIR in .env to move it, for example to another drive.
+      - ${DATA_HOST_DIR:-./docukaksh-data}:/data
     # Small footprint: the app itself is a few tens of MB of RAM.
     mem_limit: 256m
     cpus: 1.0

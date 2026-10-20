@@ -1,4 +1,4 @@
-// ---- State and constants ------------------------------------------------------
+// ---- Constants ----------------------------------------------------------------
 
 const THEMES = [
   { id: 'day', label: 'Day' },
@@ -13,14 +13,65 @@ const THEMES = [
   { id: 'rose-pine-dawn', label: 'Rosé Pine Dawn' },
 ];
 
+// Folder icons: 24-unit outline drawings. The ids must match src/icons.js.
+const ICON_PATHS = {
+  folder: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  home: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  house: '<path d="M4 10l8-6 8 6v10H4z"/><path d="M10 20v-5h4v5"/>',
+  car: '<path d="M5 16l1.5-5a2 2 0 0 1 2-1.5h7a2 2 0 0 1 2 1.5L19 16"/><path d="M3 16h18v3H3z"/><circle cx="7.5" cy="19" r="1"/><circle cx="16.5" cy="19" r="1"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2"/>',
+  school: '<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/>',
+  medical: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
+  heart: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+  receipt: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  bank: '<path d="M3 10l9-6 9 6"/><path d="M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18"/>',
+  money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+  shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+  passport: '<rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M8 18h8"/>',
+  id: '<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M13 10h5M13 14h4"/>',
+  plane: '<path d="M2 13l20-8-8 20-3-8z"/>',
+  tools: '<path d="M14.7 6.3a4 4 0 0 0 5 5L11 21l-3-3 9.7-9.7z"/>',
+  book: '<path d="M4 4h6a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a2 2 0 0 1 2-2h7z"/>',
+  camera: '<path d="M4 7h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-6-6-8 8"/>',
+  gift: '<rect x="3" y="8" width="18" height="4"/><path d="M5 12v9h14v-9M12 8v13M12 8c-2-3-6-3-6 0s6 0 6 0zM12 8c2-3 6-3 6 0s-6 0-6 0z"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  cloud: '<path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11.5 1.5A3.5 3.5 0 0 1 18 18z"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v11h14V9M10 13h4"/>',
+  cart: '<path d="M3 4h2l2.4 11h10.2L20 7H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+  phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+  baby: '<circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  pet: '<circle cx="7" cy="8" r="2"/><circle cx="17" cy="8" r="2"/><circle cx="4.5" cy="14" r="1.5"/><circle cx="19.5" cy="14" r="1.5"/><path d="M8 18c0-2 2-3 4-3s4 1 4 3-2 3-4 3-4-1-4-3z"/>',
+};
+const iconSvg = (id) => `<svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true">${ICON_PATHS[id] ?? ICON_PATHS.folder}</svg>`;
+
+const PERMISSION_HELP = {
+  view: 'Can open and download. Cannot change anything.',
+  edit: 'Can open, change, move, delete and share onwards.',
+  dropbox: 'Can upload into the folder only. Cannot see what is inside it.',
+};
+const PREVIEWABLE_NATIVE = new Set(['pdf', 'image', 'video', 'audio']);
+
+// ---- State ------------------------------------------------------------------------
+
 const state = {
   user: null,
+  version: '',
   persons: [],
   personId: null,
   folderId: null,
-  view: 'files',
+  folder: null,
+  level: 'edit',
+  view: 'home',
   query: '',
   sort: readStore('dk-sort', { key: 'name', dir: 'asc' }),
+  selecting: false,
+  selected: new Map(),
+  retention: 30,
+  auditFilters: {},
 };
 
 let renderToken = 0;
@@ -32,10 +83,9 @@ const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
-const FOLDER_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
-const ROLE_LABELS = { super_admin: 'Super admin', user: 'User' };
 const ITEM_TYPE = 'application/x-dk-item';
 const PERSON_TYPE = 'application/x-dk-person';
+const ROLE_LABELS = { super_admin: 'Super admin', user: 'User' };
 
 // Storage can be blocked (private windows). Preferences are conveniences, so failures are ignored.
 function readStore(key, fallback) {
@@ -49,7 +99,7 @@ function writeStore(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Ignored: the preference simply will not persist.
+    // Ignored: the preference will not persist.
   }
 }
 
@@ -83,8 +133,9 @@ function toast(message, isError = false) {
 }
 
 function formatSize(bytes) {
+  if (bytes == null) return '';
   if (bytes < 1024) return `${bytes} B`;
-  const units = ['KB', 'MB', 'GB'];
+  const units = ['KB', 'MB', 'GB', 'TB'];
   let value = bytes / 1024;
   let i = 0;
   while (value >= 1024 && i < units.length - 1) {
@@ -94,7 +145,7 @@ function formatSize(bytes) {
   return `${value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-// SQLite stores UTC as "YYYY-MM-DD HH:MM:SS"; ISO strings are used for client-provided dates.
+// SQLite stores UTC as "YYYY-MM-DD HH:MM:SS"; ISO strings come from the browser or server clock.
 function parseStamp(value) {
   if (!value) return null;
   const date = new Date(/T|Z|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value.replace(' ', 'T')}Z`);
@@ -102,38 +153,59 @@ function parseStamp(value) {
 }
 const formatDate = (value) => parseStamp(value)?.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) ?? '—';
 const formatDateTime = (value) => parseStamp(value)?.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) ?? '—';
+const dayOnly = (value) => (value ? value.slice(0, 10) : '—');
 
 function extBadge(name) {
   const dot = name.lastIndexOf('.');
   return dot > 0 && dot < name.length - 1 ? esc(name.slice(dot + 1, dot + 5).toUpperCase()) : 'FILE';
 }
 
+// Initials for the collapsed sidebar: "Sagar Lamani" -> SL, one name -> S, more than three words -> first and last.
+function initials(name) {
+  const words = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return '?';
+  const letters = words.length > 3 ? [words[0], words[words.length - 1]] : words;
+  return letters.map((w) => w[0]).join('').toUpperCase();
+}
+
 const endpoint = (kind) => (kind === 'folder' ? 'folders' : 'files');
-const currentPerson = () => state.persons.find((p) => p.id === state.personId);
 const can = (permission) => Boolean(state.user?.permissions?.includes(permission));
 const isAdmin = () => can('persons:manage');
+const canWrite = () => state.level === 'edit';
 const hasFiles = (e) => [...(e.dataTransfer?.types ?? [])].includes('Files');
 const hasType = (e, type) => [...(e.dataTransfer?.types ?? [])].includes(type);
-const initial = (email) => esc((email || '?').charAt(0));
+const itemKey = (kind, id) => `${kind}:${id}`;
 
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = THEMES.some((t) => t.id === theme) ? theme : 'day';
+function applyPrefs(prefs) {
+  const root = document.documentElement;
+  root.dataset.theme = THEMES.some((t) => t.id === prefs.theme) ? prefs.theme : 'day';
+  root.dataset.text = prefs.text_size ?? 'normal';
+  root.dataset.contrast = prefs.contrast ?? 'normal';
+  root.dataset.density = prefs.density ?? 'comfortable';
 }
 
-// ---- Routing --------------------------------------------------------------------
+// ---- Routing ------------------------------------------------------------------------
+
+const VIEWS = ['home', 'shared', 'starred', 'users', 'recovery', 'trash', 'audit', 'system'];
+const ADMIN_VIEWS = ['users', 'recovery', 'trash', 'audit', 'system'];
 
 function parseRoute() {
-  if (location.hash === '#/users') return { view: 'users' };
-  if (location.hash === '#/recovery') return { view: 'recovery' };
-  if (location.hash === '#/trash') return { view: 'trash' };
-  const match = location.hash.match(/^#\/p\/(\d+)(?:\/f\/(\d+))?$/);
-  return match
-    ? { view: 'files', personId: Number(match[1]), folderId: match[2] ? Number(match[2]) : null }
-    : { view: 'files', personId: null, folderId: null };
+  const hash = location.hash;
+  const named = hash.match(/^#\/(\w+)$/);
+  if (named && VIEWS.includes(named[1])) return { view: named[1] };
+  let match = hash.match(/^#\/p\/(\d+)(?:\/f\/(\d+))?$/);
+  if (match) return { view: 'files', personId: Number(match[1]), folderId: match[2] ? Number(match[2]) : null };
+  match = hash.match(/^#\/fo\/(\d+)$/);
+  if (match) return { view: 'files', personId: null, folderId: Number(match[1]) };
+  return { view: 'home' };
 }
 
-const personHash = (personId, folderId = null) =>
-  (personId ? `#/p/${personId}${folderId ? `/f/${folderId}` : ''}` : '#/');
+const hashFor = () => {
+  if (state.view !== 'files') return `#/${state.view}`;
+  if (state.folderId) return `#/fo/${state.folderId}`;
+  if (state.personId) return `#/p/${state.personId}`;
+  return '#/home';
+};
 
 // Navigation lives in the URL hash, so reload and the back button both work.
 function navigate(hash) {
@@ -144,9 +216,12 @@ function navigate(hash) {
   location.hash = hash; // the hashchange listener renders
 }
 
-const go = (personId, folderId = null) => navigate(personHash(personId, folderId));
+const go = (personId, folderId = null) => {
+  if (folderId) return navigate(`#/fo/${folderId}`);
+  return navigate(personId ? `#/p/${personId}` : '#/home');
+};
 
-// ---- Overlays: dialogs, action sheets, preview, settings -------------------------
+// ---- Overlays ---------------------------------------------------------------------
 
 function openOverlay(html, setup) {
   return new Promise((resolve) => {
@@ -169,7 +244,8 @@ function openOverlay(html, setup) {
   });
 }
 
-// Fields: { name, label, type, value, options, optional }. type 'checkboxes' returns an array.
+// Fields: { name, label, type, value, options, optional, placeholder }.
+// Types: text, email, password, color, select, checkboxes, textarea, icons.
 function formModal({ title, message = '', fields = [], submit = 'Save', danger = false }) {
   const inputs = fields.map((f) => {
     if (f.type === 'select') {
@@ -183,6 +259,16 @@ function formModal({ title, message = '', fields = [], submit = 'Save', danger =
       const items = f.options.map((o) => `
         <label><input type="checkbox" name="${f.name}" value="${esc(o.value)}"${selected.has(String(o.value)) ? ' checked' : ''}> ${esc(o.label)}</label>`).join('');
       return `<div class="field"><span>${esc(f.label)}</span><div class="check-list">${items || '<p class="muted small">No persons yet.</p>'}</div></div>`;
+    }
+    if (f.type === 'textarea') {
+      return `<label class="field"><span>${esc(f.label)}</span><textarea class="textarea" name="${f.name}" maxlength="2000"${f.optional ? '' : ' required'}>${esc(f.value ?? '')}</textarea></label>`;
+    }
+    if (f.type === 'icons') {
+      const options = Object.keys(ICON_PATHS).map((id) => `
+        <label class="icon-option${id === f.value ? ' selected' : ''}" title="${esc(id)}">
+          <input type="radio" name="${f.name}" value="${id}"${id === f.value ? ' checked' : ''} hidden>${iconSvg(id)}
+        </label>`).join('');
+      return `<div class="field"><span>${esc(f.label)}</span><div class="icon-picker">${options}</div></div>`;
     }
     const type = f.type || 'text';
     const value = type === 'password' ? '' : esc(f.value ?? '');
@@ -203,6 +289,9 @@ function formModal({ title, message = '', fields = [], submit = 'Save', danger =
       </div>
     </form>`, (root, close) => {
     const form = root.querySelector('form');
+    form.querySelectorAll('.icon-option input').forEach((input) => input.addEventListener('change', () => {
+      form.querySelectorAll('.icon-option').forEach((l) => l.classList.toggle('selected', l.querySelector('input').checked));
+    }));
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const result = Object.fromEntries(new FormData(form));
@@ -211,7 +300,7 @@ function formModal({ title, message = '', fields = [], submit = 'Save', danger =
       }
       close(result);
     });
-    form.querySelector('input:not([type="checkbox"]), select')?.focus();
+    form.querySelector('input:not([type="checkbox"]):not([type="radio"]), select, textarea')?.focus();
   });
 }
 
@@ -253,9 +342,10 @@ async function openPreview(id) {
     default: body = '<p class="note">No preview for this file type. Use Download to open it.</p>';
   }
 
-  const path = file.path.length ? file.path.join(' / ') : 'Person root';
+  const where = file.path.length ? file.path.join(' / ') : 'Person root';
   const details = `
     <h3>Details</h3>
+    ${file.description ? `<p class="description">${esc(file.description)}</p>` : '<p class="muted small">No description</p>'}
     <dl>
       <dt>Name</dt><dd>${esc(file.name)}</dd>
       <dt>Type</dt><dd>${esc(file.mime_type)}</dd>
@@ -263,13 +353,17 @@ async function openPreview(id) {
       <dt>Uploaded by</dt><dd>${esc(file.uploaded_by_email || 'Deleted account')}</dd>
       <dt>Uploaded</dt><dd>${esc(formatDateTime(file.created_at))}</dd>
       <dt>File created</dt><dd>${esc(file.doc_created_at ? formatDateTime(file.doc_created_at) : '—')}</dd>
+      <dt>Expires</dt><dd>${esc(dayOnly(file.expires_on))}</dd>
       <dt>Person</dt><dd>${esc(file.person_name)}</dd>
-      <dt>Location</dt><dd>${esc(path)}</dd>
+      <dt>Location</dt><dd>${esc(where)}</dd>
       <dt>Checksum</dt><dd title="${esc(file.sha256)}"><code>${esc(file.sha256.slice(0, 16))}…</code></dd>
     </dl>
     <h3>Tags</h3>
     <div class="tags">${file.tags.length ? file.tags.map((t) => `<span class="badge tag">${esc(t)}</span>`).join('') : '<span class="muted small">No tags</span>'}</div>
-    <div><button class="btn small" type="button" data-edit-tags>Edit tags</button></div>`;
+    <div class="settings-row">
+      ${file.can_write ? '<button class="btn small" type="button" data-edit-details>Edit details</button><button class="btn small" type="button" data-edit-tags>Edit tags</button>' : ''}
+      <button class="btn small" type="button" data-share-file>Share…</button>
+    </div>`;
 
   await openOverlay(`
     <div class="preview" role="dialog" aria-modal="true" aria-label="${esc(file.name)}">
@@ -278,6 +372,7 @@ async function openPreview(id) {
         <span class="muted small">${esc(formatSize(file.size))}</span>
         <span class="grow"></span>
         <button class="btn ghost details-toggle" type="button" data-details>Details</button>
+        <button class="btn" type="button" data-native-share>Share</button>
         <a class="btn" href="${src}?download=1">Download</a>
         <button class="btn" type="button" data-close>Close</button>
       </header>
@@ -287,32 +382,174 @@ async function openPreview(id) {
       </div>
     </div>`, (root, close) => {
     root.querySelector('[data-details]')?.addEventListener('click', () => root.querySelector('#details').classList.toggle('open'));
+    root.querySelector('[data-native-share]')?.addEventListener('click', () => shareToApps(file));
     root.querySelector('[data-edit-tags]')?.addEventListener('click', async () => {
       close();
       await editTags(file.id, file.tags);
-      openPreview(file.id);
+    });
+    root.querySelector('[data-edit-details]')?.addEventListener('click', async () => {
+      close();
+      await editFileDetails(file);
+    });
+    root.querySelector('[data-share-file]')?.addEventListener('click', () => {
+      close();
+      openShareDialog('file', file.id, file.name);
     });
   });
 }
 
-async function editTags(fileId, currentTags) {
+// Hands the file to the operating system's share sheet (WhatsApp, email and so on) where the
+// browser can share files. Otherwise it downloads the file so it can be attached by hand.
+async function shareToApps(file) {
+  const res = await fetch(`/api/files/${file.id}/content?download=1`, { credentials: 'same-origin' });
+  if (!res.ok) return toast('Could not prepare the file for sharing', true);
+  const blob = await res.blob();
+  const shareFile = new File([blob], file.name, { type: file.mime_type });
+  if (navigator.canShare?.({ files: [shareFile] })) {
+    try {
+      await navigator.share({ files: [shareFile], title: file.name });
+    } catch (err) {
+      if (err.name !== 'AbortError') toast('Sharing was not completed', true);
+    }
+    return;
+  }
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  toast('This browser cannot share files directly. The file was downloaded so you can attach it.');
+}
+
+// ---- Settings -------------------------------------------------------------------------------
+
+const SETTINGS_SECTIONS = [
+  ['appearance', 'Appearance'],
+  ['accessibility', 'Accessibility'],
+  ['account', 'Account'],
+  ['about', 'About'],
+];
+
+function openSettings(section = 'appearance') {
+  return openOverlay(`
+    <div class="settings" role="dialog" aria-modal="true" aria-label="Settings">
+      <div class="settings-row"><h2 class="grow">Settings</h2><button class="btn" type="button" data-close>Close</button></div>
+      <div class="settings-layout">
+        <nav class="settings-nav" aria-label="Settings sections">
+          ${SETTINGS_SECTIONS.map(([id, label]) => `<button type="button" data-section="${id}">${label}</button>`).join('')}
+        </nav>
+        <div class="settings-body" id="settings-body"></div>
+      </div>
+    </div>`, (root, close) => {
+    const show = (id) => {
+      root.querySelectorAll('[data-section]').forEach((b) => b.classList.toggle('active', b.dataset.section === id));
+      const body = root.querySelector('#settings-body');
+      body.innerHTML = settingsSection(id);
+      wireSettingsSection(body, close);
+    };
+    root.querySelectorAll('[data-section]').forEach((b) => b.addEventListener('click', () => show(b.dataset.section)));
+    show(section);
+  });
+}
+
+const choiceButtons = (name, options, current) => options.map((o) =>
+  `<button class="btn" type="button" data-pref="${name}" data-value="${o.id}" aria-pressed="${o.id === current}">${esc(o.label)}</button>`).join('');
+
+function settingsSection(id) {
+  const user = state.user;
+  if (id === 'appearance') {
+    return `
+      <h2>Appearance</h2>
+      <p class="muted small">Day and Night are the defaults. Your choice is saved to your account.</p>
+      <div class="theme-grid" role="group" aria-label="Theme">
+        ${THEMES.map((t) => `
+          <button class="theme-option${t.id === user.theme ? ' selected' : ''}" type="button" data-pref="theme" data-value="${t.id}" aria-pressed="${t.id === user.theme}">
+            <span class="swatch" data-t="${t.id}"></span>${esc(t.label)}
+          </button>`).join('')}
+      </div>
+      <h3>Density</h3>
+      <div class="choice-row">${choiceButtons('density', [{ id: 'comfortable', label: 'Comfortable' }, { id: 'compact', label: 'Compact' }], user.density)}</div>`;
+  }
+  if (id === 'accessibility') {
+    return `
+      <h2>Accessibility</h2>
+      <p class="muted small">Make text bigger, or improve contrast, across the whole app.</p>
+      <h3>Text size</h3>
+      <div class="choice-row">${choiceButtons('text_size', [{ id: 'normal', label: 'Normal' }, { id: 'large', label: 'Large' }, { id: 'xlarge', label: 'Extra large' }], user.text_size)}</div>
+      <h3>Contrast</h3>
+      <div class="choice-row">${choiceButtons('contrast', [{ id: 'normal', label: 'Normal' }, { id: 'high', label: 'High contrast' }], user.contrast)}</div>`;
+  }
+  if (id === 'account') {
+    return `
+      <h2>Account</h2>
+      <p class="muted small">${esc(user.email)} · ${esc(ROLE_LABELS[user.role] ?? user.role)}</p>
+      <div class="settings-row">
+        <button class="btn" type="button" data-change-password>Change password</button>
+        <button class="btn danger" type="button" data-logout>Sign out</button>
+      </div>`;
+  }
+  return `
+    <div class="about">
+      <h2>About DocuKaksh</h2>
+      <p class="muted small">A self-hosted place for family and office documents.</p>
+      <dl>
+        <dt>Version</dt><dd>${esc(state.version || '—')}</dd>
+        <dt>Encryption</dt><dd>Every uploaded file is encrypted with AES-256-GCM before it is stored.</dd>
+        <dt>Keys</dt><dd>The encryption key and all settings are read from the .env file on the server.</dd>
+        <dt>Data</dt><dd>Stored in the data folder set by DATA_HOST_DIR (database, encrypted files, previews).</dd>
+      </dl>
+    </div>`;
+}
+
+function wireSettingsSection(body, close) {
+  body.querySelectorAll('[data-pref]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const field = button.dataset.pref;
+      const value = button.dataset.value;
+      try {
+        const prefs = await api('/auth/me', { method: 'PATCH', body: { [field]: value } });
+        Object.assign(state.user, prefs);
+        applyPrefs(state.user);
+        body.querySelectorAll(`[data-pref="${field}"]`).forEach((b) => {
+          const on = b.dataset.value === value;
+          b.setAttribute('aria-pressed', String(on));
+          b.classList.toggle('selected', on && field === 'theme');
+        });
+      } catch (err) {
+        toast(err.message, true);
+      }
+    });
+  });
+  body.querySelector('[data-change-password]')?.addEventListener('click', () => {
+    close();
+    changePassword();
+  });
+  body.querySelector('[data-logout]')?.addEventListener('click', () => {
+    close();
+    logout();
+  });
+}
+
+async function changePassword() {
   const result = await formModal({
-    title: 'Tags',
-    message: 'Separate tags with commas. Tags help you find files with search (type #tag).',
-    fields: [{ name: 'tags', label: 'Tags', value: currentTags.join(', '), optional: true, placeholder: 'e.g. tax, 2026, insurance' }],
-    submit: 'Save tags',
+    title: 'Change password',
+    message: 'Other devices will be signed out.',
+    fields: [
+      { name: 'current', label: 'Current password', type: 'password' },
+      { name: 'password', label: 'New password (8+ characters)', type: 'password' },
+    ],
+    submit: 'Change password',
   });
   if (!result) return;
   try {
-    await api(`/files/${fileId}/tags`, { method: 'PUT', body: { tags: result.tags } });
-    toast('Tags saved');
-    render();
+    await api('/auth/password', { method: 'POST', body: result });
+    toast('Password changed');
   } catch (err) {
     toast(err.message, true);
   }
 }
 
-// ---- Drawer and sidebar --------------------------------------------------------
+// ---- Drawer and sidebar -------------------------------------------------------------
 
 function openDrawer() {
   $('#app').classList.add('drawer-open');
@@ -330,7 +567,7 @@ function applySidebarState(collapsed) {
   btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
 }
 
-// ---- Auth screens -----------------------------------------------------------------
+// ---- Auth screens ----------------------------------------------------------------------
 
 function showAuthCard(html) {
   $('#app').classList.add('hidden');
@@ -344,9 +581,10 @@ const brandHtml = () => '<div class="brand big"><span class="logo">D</span>DocuK
 
 async function boot() {
   const status = await api('/auth/status');
+  state.version = status.version ?? '';
   if (!status.user) return status.setupRequired ? showSetup() : showLogin();
   state.user = status.user;
-  applyTheme(status.user.theme);
+  applyPrefs(status.user);
   if (status.user.mustChangePassword) return showForcedChange();
 
   $('#auth').classList.add('hidden');
@@ -354,26 +592,19 @@ async function boot() {
   $('#admin-section').classList.toggle('hidden', !isAdmin());
   $('#new-person').classList.toggle('hidden', !isAdmin());
   $('#account-email').textContent = status.user.email;
-  $('#avatar').textContent = initial(status.user.email);
+  $('#avatar').textContent = initials(status.user.email);
   applySidebarState(readStore('dk-sidebar', false) && window.innerWidth > 900);
   updateRecoveryCount(status.user.pendingRequests);
 
   const route = parseRoute();
   state.view = route.view;
-  state.personId = route.personId;
-  state.folderId = route.folderId;
-  if (!viewAllowed(state.view)) state.view = 'files';
+  state.personId = route.personId ?? null;
+  state.folderId = route.folderId ?? null;
+  if (ADMIN_VIEWS.includes(state.view) && !isAdmin()) state.view = 'home';
   await refreshPersons();
-  if (state.view === 'files' && !state.persons.some((p) => p.id === state.personId)) {
-    state.personId = state.persons[0]?.id ?? null;
-    state.folderId = null;
-  }
-  history.replaceState(null, '', currentHash());
+  history.replaceState(null, '', hashFor());
   await render();
 }
-
-const viewAllowed = (view) => view === 'files' || (isAdmin() && ['users', 'recovery', 'trash'].includes(view));
-const currentHash = () => (state.view === 'files' ? personHash(state.personId, state.folderId) : `#/${state.view}`);
 
 function showSetup() {
   const el = showAuthCard(`
@@ -471,74 +702,13 @@ async function logout() {
   boot();
 }
 
-// ---- Settings and account ---------------------------------------------------------
-
-function openSettings() {
-  const current = state.user.theme || 'day';
-  const themes = THEMES.map((t) => `
-    <button class="theme-option${t.id === current ? ' selected' : ''}" type="button" data-theme-choice="${t.id}">
-      <span class="swatch" data-t="${t.id}"></span>${esc(t.label)}
-    </button>`).join('');
-  openOverlay(`
-    <div class="settings" role="dialog" aria-modal="true" aria-label="Settings">
-      <div class="settings-row"><h2 class="grow">Settings</h2><button class="btn" type="button" data-close>Close</button></div>
-      <h3>Appearance</h3>
-      <div class="theme-grid">${themes}</div>
-      <h3>Account</h3>
-      <p class="muted small">${esc(state.user.email)} · ${esc(ROLE_LABELS[state.user.role] ?? state.user.role)}</p>
-      <div class="settings-row">
-        <button class="btn" type="button" data-change-password>Change password</button>
-        <button class="btn danger" type="button" data-logout>Sign out</button>
-      </div>
-    </div>`, (root, close) => {
-    root.querySelectorAll('[data-theme-choice]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.themeChoice;
-        applyTheme(id);
-        root.querySelectorAll('[data-theme-choice]').forEach((b) => b.classList.toggle('selected', b === button));
-        state.user.theme = id;
-        try {
-          await api('/auth/me', { method: 'PATCH', body: { theme: id } });
-        } catch (err) {
-          toast(err.message, true);
-        }
-      });
-    });
-    root.querySelector('[data-change-password]').addEventListener('click', () => {
-      close();
-      changePassword();
-    });
-    root.querySelector('[data-logout]').addEventListener('click', () => {
-      close();
-      logout();
-    });
-  });
-}
-
-async function changePassword() {
-  const result = await formModal({
-    title: 'Change password',
-    message: 'Other devices will be signed out.',
-    fields: [
-      { name: 'current', label: 'Current password', type: 'password' },
-      { name: 'password', label: 'New password (8+ characters)', type: 'password' },
-    ],
-    submit: 'Change password',
-  });
-  if (!result) return;
-  try {
-    await api('/auth/password', { method: 'POST', body: result });
-    toast('Password changed');
-  } catch (err) {
-    toast(err.message, true);
-  }
-}
-
-// ---- Persons ------------------------------------------------------------------------
+// ---- Persons ----------------------------------------------------------------------------------
 
 async function refreshPersons() {
   state.persons = await api('/persons');
 }
+
+const currentPerson = () => state.persons.find((p) => p.id === state.personId);
 
 function renderPersons() {
   const nav = $('#person-list');
@@ -549,15 +719,15 @@ function renderPersons() {
       <button class="person${state.view === 'files' && p.id === state.personId ? ' active' : ''}" type="button"
         data-person="${p.id}" title="${esc(p.name)}" ${isAdmin() ? 'draggable="true"' : ''}>
         <span class="dot" data-color="${esc(p.color)}"></span>
+        <span class="initials" data-color="${esc(p.color)}">${esc(initials(p.name))}</span>
         <span class="pname">${esc(p.name)}</span>
         <span class="count">${p.file_count}</span>
       </button>`).join('');
-    nav.querySelectorAll('.dot').forEach((dot) => { dot.style.background = dot.dataset.color; });
+    nav.querySelectorAll('.dot, .initials').forEach((el) => { el.style.background = el.dataset.color; });
   }
-  for (const id of ['nav-users', 'nav-recovery', 'nav-trash']) {
-    const view = id.replace('nav-', '');
-    $(`#${id}`).classList.toggle('active', state.view === view);
-  }
+  document.querySelectorAll('[data-nav]').forEach((b) => {
+    b.classList.toggle('active', state.view === b.dataset.nav);
+  });
 }
 
 function updateRecoveryCount(count) {
@@ -572,6 +742,7 @@ async function newPerson() {
     fields: [
       { name: 'name', label: 'Name' },
       { name: 'color', label: 'Colour', type: 'color', value: '#4f46e5' },
+      { name: 'description', label: 'Description (optional)', type: 'textarea', optional: true },
     ],
     submit: 'Create',
   });
@@ -594,6 +765,7 @@ async function editPerson() {
     fields: [
       { name: 'name', label: 'Name', value: person.name },
       { name: 'color', label: 'Colour', type: 'color', value: person.color },
+      { name: 'description', label: 'Description', type: 'textarea', optional: true, value: person.description },
     ],
     submit: 'Save',
   });
@@ -635,20 +807,20 @@ async function personSettings() {
     return openOverlay(`
       <div class="modal" role="dialog" aria-modal="true" aria-label="${esc(person.name)}">
         <h2>${esc(person.name)}</h2>
+        ${person.description ? `<p class="description">${esc(person.description)}</p>` : ''}
         <p class="muted">${person.file_count} document${person.file_count === 1 ? '' : 's'} in this person.</p>
         <p class="muted small">Only the super admin can rename, recolour, or remove a person.</p>
         <div class="modal-actions"><button class="btn primary" type="button" data-close>Close</button></div>
       </div>`);
   }
   const choice = await openSheet(person.name, [
-    { value: 'edit', label: 'Edit name and colour' },
+    { value: 'edit', label: 'Edit name, colour and description' },
     { value: 'delete', label: 'Move to recycle bin', danger: true },
   ]);
   if (choice === 'edit') return editPerson();
   if (choice === 'delete') return deletePerson();
 }
 
-// Dragging persons in the sidebar sets their display order (super admin only).
 async function reorderPersons(draggedId, targetId) {
   const ids = state.persons.map((p) => p.id).filter((id) => id !== draggedId);
   const index = ids.indexOf(targetId);
@@ -662,37 +834,62 @@ async function reorderPersons(draggedId, targetId) {
   }
 }
 
-// ---- Rendering --------------------------------------------------------------------
+// ---- Rendering ---------------------------------------------------------------------------------
 
 async function render() {
   const token = ++renderToken;
   renderPersons();
   const isFiles = state.view === 'files';
-  const hasPersons = state.persons.length > 0;
-  $('#toolbar').classList.toggle('hidden', !isFiles || !hasPersons);
+  const inPerson = isFiles && (state.personId || state.folderId);
+  $('#toolbar').classList.toggle('hidden', !inPerson);
   $('#users-toolbar').classList.toggle('hidden', state.view !== 'users');
-  $('#search').closest('.search-box').classList.toggle('hidden', !isFiles);
+  $('#search').closest('.search-box').classList.toggle('hidden', ['users', 'system', 'audit'].includes(state.view));
   $('#person-settings').classList.toggle('hidden', !isFiles || !state.personId);
   $('#crumbs').innerHTML = '';
   $('#item-count').textContent = '';
-  $('#content').classList.toggle('hidden', false);
+  $('#content').classList.remove('select-mode');
+  $('#select-btn').classList.toggle('hidden', !isFiles || !!state.query);
+  $('#select-btn').setAttribute('aria-pressed', String(state.selecting));
+  $('#select-btn').textContent = state.selecting ? 'Done' : 'Select';
+  $('#import-btn').classList.toggle('hidden', !isFiles || !canWrite());
+  $('#new-folder').classList.toggle('hidden', !isFiles || !canWrite());
+  renderBulkBar();
 
+  if (state.view === 'home') return renderHome(token);
+  if (state.view === 'shared') return renderShared(token);
+  if (state.view === 'starred') return renderStarred(token);
   if (state.view === 'users') return renderUsers(token);
   if (state.view === 'recovery') return renderRecovery(token);
   if (state.view === 'trash') return renderTrash(token);
+  if (state.view === 'audit') return renderAudit(token);
+  if (state.view === 'system') return renderSystem(token);
   if (state.query) return renderSearch(token);
-  if (!hasPersons) return renderEmpty();
+  if (!state.personId && !state.folderId) {
+    $('#content').innerHTML = '<div class="empty"><h2>Choose a person</h2><p class="muted">Pick a person in the sidebar, or see what is shared with you.</p></div>';
+    return;
+  }
+  return renderFiles(token);
+}
 
+async function renderFiles(token) {
   try {
-    const qs = state.folderId ? `?folder_id=${state.folderId}` : '';
-    const data = await api(`/persons/${state.personId}/browse${qs}`);
+    const data = state.folderId
+      ? await api(`/folders/${state.folderId}/browse`)
+      : await api(`/persons/${state.personId}/browse`);
     if (token !== renderToken) return;
+    state.folder = data.folder;
+    state.level = data.level ?? 'edit';
+    state.personId = data.person?.id ?? state.personId;
     renderCrumbs(data);
+    $('#new-folder').classList.toggle('hidden', !canWrite());
+    $('#import-btn').classList.toggle('hidden', !canWrite());
+    renderBulkBar();
     renderBrowse(data);
   } catch (err) {
     if (token !== renderToken) return;
     if (err.status === 401) return showLogin();
-    if (err.status === 404 && state.folderId) return go(state.personId, null);
+    if (err.status === 403 && err.code === 'DROPBOX') return renderDropbox(token);
+    if (err.status === 404 && state.folderId) return navigate(state.personId ? `#/p/${state.personId}` : '#/home');
     if (err.status === 404) {
       await refreshPersons();
       return go(state.persons[0]?.id ?? null, null);
@@ -701,8 +898,23 @@ async function render() {
   }
 }
 
+function renderDropbox(token) {
+  if (token !== renderToken) return;
+  state.level = 'dropbox';
+  $('#crumbs').innerHTML = '<span class="crumb-static">Upload folder</span>';
+  $('#new-folder').classList.add('hidden');
+  $('#import-btn').classList.add('hidden');
+  $('#content').innerHTML = `
+    <div class="empty">
+      <h2>Upload only</h2>
+      <p class="muted">This folder accepts files from you, but you cannot see what is inside it.</p>
+      <button class="btn primary" type="button" data-action="upload-here">Upload files here</button>
+    </div>`;
+}
+
 function renderCrumbs({ person, breadcrumb }) {
-  const parts = [`<button class="crumb" type="button" data-crumb="">${esc(person.name)}</button>`];
+  const parts = [];
+  if (person) parts.push(`<button class="crumb" type="button" data-crumb="" data-person="${person.id}">${esc(person.name)}</button>`);
   for (const c of breadcrumb) {
     parts.push(`<span class="sep">/</span><button class="crumb" type="button" data-crumb="${c.id}">${esc(c.name)}</button>`);
   }
@@ -718,9 +930,11 @@ const tagsHtml = (tags = []) => (tags.length
   : '');
 
 // One row layout for files, folders, search results, users, requests and bin items.
-function rowHtml({ kind, id, icon, iconClass = '', label, meta, col1 = '', col2 = '', tags = [], attrs = '', draggable = false }) {
+function rowHtml({ kind, id, icon, iconClass = '', label, meta, col1 = '', col2 = '', tags = [], attrs = '', draggable = false, title = '' }) {
+  const selected = state.selected.has(itemKey(kind, id));
   return `
-    <div class="row" data-kind="${kind}" data-id="${id}" tabindex="0" ${draggable ? 'draggable="true"' : ''} ${attrs}>
+    <div class="row${selected ? ' selected' : ''}" data-kind="${kind}" data-id="${id}" tabindex="0" ${draggable ? 'draggable="true"' : ''} ${attrs} title="${esc(title)}">
+      <input class="pick" type="checkbox" aria-label="Select ${esc(label)}" ${selected ? 'checked' : ''} data-pick>
       <span class="name">
         <span class="icon ${iconClass}">${icon}</span>
         <span class="text"><span class="label">${esc(label)}</span><span class="meta">${meta}</span>${tagsHtml(tags)}</span>
@@ -739,7 +953,7 @@ function headerHtml(columns) {
     const arrow = active ? (state.sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
     return `<span class="${key === 'name' ? 'name' : 'col'}"><button class="sort-btn" type="button" data-sort="${key}"${aria}>${esc(label)}${arrow}</button></span>`;
   }).join('');
-  return `<div class="row head">${cells}<span class="kebab-spacer"></span></div>`;
+  return `<div class="row head"><span class="pick-head"></span>${cells}<span class="kebab-spacer"></span></div>`;
 }
 
 function sortItems(folders, files) {
@@ -755,7 +969,8 @@ function sortItems(folders, files) {
   return { folders: sortList(folders), files: sortList(files) };
 }
 
-function renderBrowse({ folders, files }) {
+function renderBrowse(data) {
+  const { folders, files } = data;
   const content = $('#content');
   const total = folders.length + files.length;
   $('#item-count').textContent = `${total} item${total === 1 ? '' : 's'}`;
@@ -763,35 +978,36 @@ function renderBrowse({ folders, files }) {
     content.innerHTML = `
       <div class="empty">
         <h2>This folder is empty</h2>
-        <p class="muted">Upload files, or create a subfolder to keep things organised.</p>
+        <p class="muted">${canWrite() ? 'Upload files, or create a subfolder to keep things organised.' : 'Nothing has been added here yet.'}</p>
       </div>`;
     return;
   }
   const sorted = sortItems(folders, files);
-  const draggable = true;
   const folderRows = sorted.folders.map((f) => rowHtml({
     kind: 'folder',
     id: f.id,
-    icon: FOLDER_ICON,
+    icon: iconSvg(f.icon),
     iconClass: 'folder',
     label: f.name,
-    meta: `Folder · ${esc(formatDate(f.created_at))}`,
+    meta: `Folder · ${esc(formatDate(f.created_at))}${f.description ? ` · ${esc(f.description.slice(0, 60))}` : ''}`,
     col1: 'Folder',
     col2: esc(formatDate(f.created_at)),
-    draggable,
+    draggable: canWrite(),
+    title: f.description || '',
   })).join('');
   const fileRows = sorted.files.map((f) => rowHtml({
     kind: 'file',
     id: f.id,
     icon: extBadge(f.name),
     label: f.name,
-    meta: `${esc(formatSize(f.size))} · ${esc(formatDate(f.created_at))}`,
+    meta: `${esc(formatSize(f.size))} · ${esc(formatDate(f.created_at))}${f.expires_on ? ` · expires ${esc(dayOnly(f.expires_on))}` : ''}`,
     col1: esc(formatSize(f.size)),
     col2: esc(formatDate(f.created_at)),
     tags: f.tags,
-    draggable,
+    draggable: canWrite(),
   })).join('');
   content.innerHTML = `<div class="list">${headerHtml([['name', 'Name'], ['size', 'Size'], ['added', 'Added']])}${folderRows}${fileRows}</div>`;
+  content.classList.toggle('select-mode', state.selecting);
 }
 
 function renderEmpty() {
@@ -832,6 +1048,146 @@ async function renderSearch(token) {
   $('#content').innerHTML = `<div class="list">${rows}</div>`;
 }
 
+// ---- Home (dashboard) -------------------------------------------------------------------------
+
+async function renderHome(token) {
+  staticCrumb('Home');
+  const data = await api('/dashboard');
+  if (token !== renderToken) return;
+  const max = Math.max(1, ...data.persons.map((p) => p.file_count));
+  const today = new Date().toISOString().slice(0, 10);
+  const personRows = data.persons.length
+    ? data.persons.map((p) => `
+        <button type="button" data-open-person="${p.id}">
+          <span class="dash-name"><span class="dot dot-inline" data-color="${esc(p.color)}"></span>${esc(p.name)}</span>
+          <span class="muted small">${p.file_count} files · ${p.folder_count} folders · ${esc(formatSize(p.bytes))}</span>
+        </button>
+        <div class="bar-track bar-wrap"><div class="bar-fill" data-width="${Math.round((p.file_count / max) * 100)}"></div></div>`).join('')
+    : '<p class="muted small">No persons yet.</p>';
+  const expiring = data.expiring.length
+    ? data.expiring.map((f) => `
+        <button type="button" data-preview="${f.id}">
+          <span class="dash-name">${esc(f.name)} <span class="muted small">· ${esc(f.person_name)}</span></span>
+          <span class="${f.expires_on < today ? 'badge off' : 'badge'}">${esc(dayOnly(f.expires_on))}</span>
+        </button>`).join('')
+    : '<p class="muted small">Nothing expires in the next 30 days.</p>';
+  const activity = data.activity.length
+    ? data.activity.map((a) => `
+        <div class="activity-row">
+          <span class="when">${esc(formatDateTime(a.created_at))}</span>
+          <span class="what">${esc(a.user_email || 'System')} · ${esc(describeAction(a))}</span>
+        </div>`).join('')
+    : '<p class="muted small">No activity yet.</p>';
+
+  $('#content').innerHTML = `
+    <div class="dash">
+      <div class="dash-cards">
+        <div class="card"><div class="big">${esc(formatSize(data.storage_bytes))}</div><div class="label-small">Storage used by your documents</div></div>
+        <div class="card"><div class="big">${data.persons.length}</div><div class="label-small">Persons you can see</div></div>
+        <div class="card"><div class="big">${data.starred}</div><div class="label-small">Starred items</div></div>
+        <div class="card"><button class="link-btn big" type="button" data-duplicates>${data.duplicate_groups}</button><div class="label-small">Duplicate groups</div></div>
+      </div>
+      <div class="dash-grid">
+        <section class="dash-section"><h2>Persons</h2><div class="dash-list">${personRows}</div></section>
+        <section class="dash-section"><h2>Expiring in 30 days</h2><div class="dash-list">${expiring}</div></section>
+      </div>
+      <section class="dash-section"><h2>Recent activity</h2>${activity}</section>
+    </div>`;
+  $('#item-count').textContent = '';
+  const content = $('#content');
+  content.querySelectorAll('[data-open-person]').forEach((b) => b.addEventListener('click', () => go(Number(b.dataset.openPerson))));
+  content.querySelectorAll('[data-preview]').forEach((b) => b.addEventListener('click', () => openPreview(Number(b.dataset.preview))));
+  content.querySelectorAll('[data-color]').forEach((el) => { el.style.background = el.dataset.color; });
+  content.querySelectorAll('[data-width]').forEach((el) => { el.style.width = `${el.dataset.width}%`; });
+  content.querySelector('[data-duplicates]')?.addEventListener('click', showDuplicates);
+}
+
+const ACTION_TEXT = {
+  'file.upload': 'uploaded', 'file.download': 'downloaded', 'file.view': 'opened', 'file.update': 'changed',
+  'file.delete': 'moved to the bin', 'file.tags': 'changed tags on', 'folder.create': 'created folder',
+  'folder.update': 'changed folder', 'folder.delete': 'moved folder to the bin', 'person.create': 'created person',
+  'person.update': 'changed person', 'person.delete': 'moved person to the bin', 'share.create': 'shared',
+  'share.revoke': 'removed a share on', 'auth.setup': 'created the super admin account', 'auth.login': 'signed in',
+  'auth.logout': 'signed out', 'auth.failed': 'failed sign-in', 'auth.locked': 'sign-in blocked',
+  'auth.password': 'changed password', 'user.create': 'created account', 'user.delete': 'deleted login',
+  'user.disable': 'disabled account', 'user.update': 'updated account', 'user.persons': 'changed person access',
+  'user.password_reset': 'reset password', 'bin.restore': 'restored from the bin', 'bin.purge': 'deleted forever',
+  'bin.auto_purge': 'emptied old bin items', 'recovery.request': 'asked for password help',
+  'recovery.approve': 'approved password help', 'recovery.reject': 'rejected password help',
+  'server.error': 'server error',
+};
+const describeAction = (a) => `${ACTION_TEXT[a.action] ?? a.action}${a.target_name ? ` “${a.target_name}”` : ''}${a.detail ? ` (${a.detail})` : ''}`;
+
+async function showDuplicates() {
+  const groups = await api('/duplicates');
+  await openOverlay(`
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Duplicates">
+      <h2>Possible duplicates</h2>
+      <p class="muted small">These files have identical content. Removing a copy is up to you.</p>
+      ${groups.length ? groups.map((g) => `
+        <div class="card card-gap">
+          <strong>${g.copies} copies</strong>
+          ${g.files.map((f) => `<div class="dash-row"><span class="dash-name">${esc(f.name)} <span class="muted small">· ${esc(f.person_name)}</span></span><button class="btn small" type="button" data-preview="${f.id}">Open</button></div>`).join('')}
+        </div>`).join('') : '<p class="muted">No duplicates found.</p>'}
+      <div class="modal-actions"><button class="btn primary" type="button" data-close>Close</button></div>
+    </div>`, (root, close) => {
+    root.querySelectorAll('[data-preview]').forEach((b) => b.addEventListener('click', () => {
+      close();
+      openPreview(Number(b.dataset.preview));
+    }));
+  });
+}
+
+// ---- Shared, starred --------------------------------------------------------------------------
+
+async function renderShared(token) {
+  staticCrumb('Shared with me');
+  const items = await api('/shared');
+  if (token !== renderToken) return;
+  $('#item-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  if (!items.length) {
+    $('#content').innerHTML = '<div class="empty"><h2>Nothing shared with you yet</h2><p class="muted">When someone shares a folder or file with you, it appears here.</p></div>';
+    return;
+  }
+  const rows = items.map((s) => rowHtml({
+    kind: s.kind,
+    id: s.id,
+    icon: s.kind === 'folder' ? iconSvg(s.icon) : extBadge(s.name),
+    iconClass: s.kind === 'folder' ? 'folder' : '',
+    label: s.name,
+    meta: `${esc(s.person_name ?? '')} · shared by ${esc(s.shared_by_email ?? 'someone')} · ${esc(formatDate(s.created_at))}`,
+    col1: `<span class="badge">${esc(s.permission)}</span>`,
+    col2: esc(formatDate(s.created_at)),
+    attrs: `data-shared="1"`,
+  })).join('');
+  $('#content').innerHTML = `<div class="list">${rows}</div>`;
+}
+
+async function renderStarred(token) {
+  staticCrumb('Starred');
+  const items = await api('/starred');
+  if (token !== renderToken) return;
+  $('#item-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  if (!items.length) {
+    $('#content').innerHTML = '<div class="empty"><h2>No starred items</h2><p class="muted">Use the ⋯ menu on a file or folder to star it for quick access.</p></div>';
+    return;
+  }
+  const rows = items.map((s) => rowHtml({
+    kind: s.kind,
+    id: s.id,
+    icon: s.kind === 'folder' ? iconSvg('star') : extBadge(s.name),
+    iconClass: s.kind === 'folder' ? 'folder' : '',
+    label: s.name,
+    meta: s.kind === 'folder' ? 'Folder' : esc(formatSize(s.size)),
+    col1: s.kind === 'folder' ? 'Folder' : esc(formatSize(s.size)),
+    col2: '',
+    attrs: `data-starred="1" data-starred-now="1"`,
+  })).join('');
+  $('#content').innerHTML = `<div class="list">${rows}</div>`;
+}
+
+// ---- Admin pages ---------------------------------------------------------------------------------
+
 async function renderUsers(token) {
   staticCrumb('Users');
   const users = await api('/users');
@@ -842,14 +1198,14 @@ async function renderUsers(token) {
     const roleLabel = ROLE_LABELS[u.role] ?? u.role;
     const status = u.active ? 'Active' : 'Disabled';
     const counts = `${u.person_count} person${u.person_count === 1 ? '' : 's'} · ${u.file_count} file${u.file_count === 1 ? '' : 's'}`;
-    const flags = [u.must_change_password ? 'Must change password' : null].filter(Boolean).join(' · ');
+    const flags = u.must_change_password ? ' · Must change password' : '';
     return rowHtml({
       kind: 'user',
       id: u.id,
-      icon: initial(u.email),
+      icon: esc(initials(u.email)),
       iconClass: 'user',
       label: self ? `${u.email} (you)` : u.email,
-      meta: `${esc(roleLabel)} · ${status} · ${counts}${flags ? ` · ${esc(flags)}` : ''}`,
+      meta: `${esc(roleLabel)} · ${status} · ${counts}${flags}`,
       col1: `<span class="badge${u.role === 'super_admin' ? ' admin' : ''}">${esc(roleLabel)}</span>`,
       col2: u.active ? `<span class="muted">${status}</span>` : '<span class="badge off">Disabled</span>',
       attrs: `data-email="${esc(u.email)}" data-role="${u.role}" data-active="${u.active ? 1 : 0}" data-self="${self ? 1 : 0}" data-person-ids="${esc(u.person_ids ?? '')}"`,
@@ -877,7 +1233,7 @@ async function renderRecovery(token) {
     return rowHtml({
       kind: 'recovery',
       id: r.id,
-      icon: initial(r.email),
+      icon: esc(initials(r.email)),
       iconClass: 'user',
       label: r.email,
       meta: `${r.note ? `“${esc(r.note)}” · ` : ''}${esc(formatDateTime(r.created_at))}`,
@@ -895,30 +1251,112 @@ async function renderTrash(token) {
   if (token !== renderToken) return;
   $('#item-count').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
   if (!items.length) {
-    $('#content').innerHTML = '<div class="empty"><h2>The recycle bin is empty</h2><p class="muted">Deleted persons, folders and files appear here until you restore them or delete them for good.</p></div>';
+    $('#content').innerHTML = `<div class="empty"><h2>The recycle bin is empty</h2><p class="muted">Deleted persons, folders and files appear here until you restore them or delete them for good. Items older than ${esc(state.retention)} days are removed automatically.</p></div>`;
     return;
   }
   const rows = items.map((item) => {
-    const isFile = item.kind === 'file';
     const kindLabel = item.kind === 'person' ? 'Person' : item.kind === 'folder' ? 'Folder' : 'File';
-    const where = item.kind === 'person' ? 'Person' : item.person_name;
     return rowHtml({
       kind: 'trash',
       id: item.id,
-      icon: item.kind === 'folder' ? FOLDER_ICON : item.kind === 'person' ? initial(item.name) : extBadge(item.name),
+      icon: item.kind === 'folder' ? iconSvg('folder') : item.kind === 'person' ? esc(initials(item.name)) : extBadge(item.name),
       iconClass: item.kind === 'folder' ? 'folder' : item.kind === 'person' ? 'user' : '',
       label: item.name,
-      meta: `${kindLabel} · ${esc(where)} · deleted ${esc(formatDateTime(item.deleted_at))}${item.deleted_by_email ? ` by ${esc(item.deleted_by_email)}` : ''}`,
-      col1: item.kind === 'person' ? 'Whole person' : `${esc(kindLabel)} · ${esc(where)}`,
+      meta: `${kindLabel} · ${esc(item.person_name)} · deleted ${esc(formatDateTime(item.deleted_at))}${item.deleted_by_email ? ` by ${esc(item.deleted_by_email)}` : ''}`,
+      col1: item.kind === 'person' ? 'Whole person' : `${esc(kindLabel)} · ${esc(item.person_name)}`,
       col2: esc(formatDate(item.deleted_at)),
-      attrs: `data-item="${item.kind}" data-name="${esc(item.name)}" data-file="${isFile ? 1 : 0}"`,
+      attrs: `data-item="${item.kind}" data-name="${esc(item.name)}"`,
     });
   }).join('');
-  const header = '<div class="row head"><span class="name">Item</span><span class="col">Location</span><span class="col">Deleted</span><span class="kebab-spacer"></span></div>';
+  const header = '<div class="row head"><span class="pick-head"></span><span class="name">Item</span><span class="col">Location</span><span class="col">Deleted</span><span class="kebab-spacer"></span></div>';
   $('#content').innerHTML = `<div class="list">${header}${rows}</div>`;
 }
 
-// ---- Item actions ---------------------------------------------------------------------
+async function renderAudit(token) {
+  staticCrumb('Audit log');
+  const users = await api('/users');
+  const filters = state.auditFilters;
+  const qs = new URLSearchParams();
+  if (filters.user_id) qs.set('user_id', filters.user_id);
+  if (filters.action) qs.set('action', filters.action);
+  if (filters.q) qs.set('q', filters.q);
+  const entries = await api(`/admin/audit?${qs}`);
+  if (token !== renderToken) return;
+  $('#item-count').textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} (newest first)`;
+  const actions = Object.keys(ACTION_TEXT).sort();
+  $('#content').innerHTML = `
+    <div class="audit-filters">
+      <select id="audit-user" aria-label="User"><option value="">All users</option>${users.map((u) => `<option value="${u.id}"${String(filters.user_id) === String(u.id) ? ' selected' : ''}>${esc(u.email)}</option>`).join('')}</select>
+      <select id="audit-action" aria-label="Action"><option value="">All actions</option>${actions.map((a) => `<option value="${a}"${filters.action === a ? ' selected' : ''}>${esc(ACTION_TEXT[a])}</option>`).join('')}</select>
+      <input id="audit-q" type="search" placeholder="Name contains…" value="${esc(filters.q ?? '')}" aria-label="Name contains">
+    </div>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>When</th><th>Who</th><th>What</th><th>Item</th></tr></thead>
+      <tbody>${entries.map((e) => `<tr>
+        <td>${esc(formatDateTime(e.created_at))}</td>
+        <td>${esc(e.user_email || 'System')}</td>
+        <td>${esc(ACTION_TEXT[e.action] ?? e.action)}</td>
+        <td>${esc(e.target_name || '—')}${e.detail ? `<div class="muted small">${esc(e.detail)}</div>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="4" class="muted">Nothing matches these filters.</td></tr>'}</tbody>
+    </table></div>`;
+  const update = () => {
+    state.auditFilters = {
+      user_id: $('#audit-user').value,
+      action: $('#audit-action').value,
+      q: $('#audit-q').value.trim(),
+    };
+    render();
+  };
+  $('#audit-user').addEventListener('change', update);
+  $('#audit-action').addEventListener('change', update);
+  let timer;
+  $('#audit-q').addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(update, 350);
+  });
+}
+
+async function renderSystem(token) {
+  staticCrumb('System');
+  const h = await api('/admin/health');
+  if (token !== renderToken) return;
+  state.retention = h.bin_retention_days;
+  $('#item-count').textContent = '';
+  const usedPct = h.disk.total_bytes ? Math.round(((h.disk.total_bytes - h.disk.free_bytes) / h.disk.total_bytes) * 100) : 0;
+  const card = (big, label) => `<div class="card"><div class="big">${big}</div><div class="label-small">${label}</div></div>`;
+  $('#content').innerHTML = `
+    <div class="dash">
+      <div class="health-grid">
+        ${card(esc(formatSize(h.disk.free_bytes)), `Free disk space (${usedPct}% used)`)}
+        ${card(esc(formatSize(h.storage.files_bytes)), 'Encrypted files')}
+        ${card(esc(formatSize(h.storage.previews_bytes)), 'Preview cache')}
+        ${card(esc(formatSize(h.storage.database_bytes)), 'Database')}
+        ${card(h.counts.files, 'Files in use')}
+        ${card(h.counts.files_in_bin, 'Files in the bin')}
+        ${card(h.last_24_hours.uploads, 'Uploads, last 24 h')}
+        ${card(h.last_24_hours.downloads, 'Downloads, last 24 h')}
+        ${card(h.last_24_hours.sign_in_failures, 'Failed sign-ins, 24 h')}
+        ${card(h.last_24_hours.errors, 'Server errors, 24 h')}
+        ${card(h.accounts_locked_now, 'Accounts locked now')}
+        ${card(`${h.memory_mb} MB`, 'Memory in use')}
+      </div>
+      <section class="dash-section">
+        <h2>Details</h2>
+        <dl class="kv">
+          <dt>App version</dt><dd>${esc(h.version)}</dd>
+          <dt>Node.js</dt><dd>${esc(h.node)}</dd>
+          <dt>Uptime</dt><dd>${esc(Math.round(h.uptime_seconds / 60))} min</dd>
+          <dt>Accounts</dt><dd>${h.counts.users}</dd>
+          <dt>Persons</dt><dd>${h.counts.persons}</dd>
+          <dt>Folders</dt><dd>${h.counts.folders}</dd>
+          <dt>Shares</dt><dd>${h.counts.shares}</dd>
+          <dt>Recycle bin retention</dt><dd>${h.bin_retention_days ? `${h.bin_retention_days} days` : 'kept forever'}</dd>
+        </dl>
+      </section>
+    </div>`;
+}
+
+// ---- Item actions ----------------------------------------------------------------------------
 
 async function rename(kind, id, row) {
   const current = row.querySelector('.label').textContent.trim();
@@ -931,6 +1369,64 @@ async function rename(kind, id, row) {
   await api(`/${endpoint(kind)}/${id}`, { method: 'PATCH', body: { name: result.name } });
   toast('Renamed');
   render();
+}
+
+async function editFolderDetails(id) {
+  const data = await api(`/folders/${id}/browse`);
+  const folder = data.folder;
+  const result = await formModal({
+    title: 'Folder details',
+    fields: [
+      { name: 'name', label: 'Name', value: folder.name },
+      { name: 'icon', label: 'Icon', type: 'icons', value: folder.icon },
+      { name: 'description', label: 'Description', type: 'textarea', optional: true, value: folder.description },
+    ],
+    submit: 'Save',
+  });
+  if (!result) return;
+  await api(`/folders/${id}`, { method: 'PATCH', body: result });
+  toast('Saved');
+  render();
+}
+
+async function editFileDetails(file) {
+  const result = await formModal({
+    title: 'File details',
+    fields: [
+      { name: 'name', label: 'Name', value: file.name },
+      { name: 'description', label: 'Description', type: 'textarea', optional: true, value: file.description },
+      { name: 'expires_on', label: 'Expiry date (optional, YYYY-MM-DD)', optional: true, value: file.expires_on ?? '', placeholder: 'e.g. 2027-03-31' },
+    ],
+    submit: 'Save',
+  });
+  if (!result) return;
+  try {
+    await api(`/files/${file.id}`, {
+      method: 'PATCH',
+      body: { name: result.name, description: result.description, expires_on: result.expires_on || null },
+    });
+    toast('Saved');
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+async function editTags(fileId, currentTags) {
+  const result = await formModal({
+    title: 'Tags',
+    message: 'Separate tags with commas. Tags help you find files with search (type #tag).',
+    fields: [{ name: 'tags', label: 'Tags', value: currentTags.join(', '), optional: true, placeholder: 'e.g. tax, 2026, insurance' }],
+    submit: 'Save tags',
+  });
+  if (!result) return;
+  try {
+    await api(`/files/${fileId}/tags`, { method: 'PUT', body: { tags: result.tags } });
+    toast('Tags saved');
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
 }
 
 function descendantIds(tree, rootId) {
@@ -948,19 +1444,27 @@ function descendantIds(tree, rootId) {
   return ids;
 }
 
-async function move(kind, id) {
-  const tree = await api(`/persons/${state.personId}/tree`);
+// Folders the user may move things into: the whole person for editors, or the shared subtree for
+// people who were given a folder.
+async function moveTargets(excludeId = null) {
+  const tree = state.level === 'edit' && state.personId
+    ? await api(`/persons/${state.personId}/tree`)
+    : await api(`/folders/${state.folderId}/subtree`);
   const byId = new Map(tree.map((f) => [f.id, f]));
   const pathOf = (folder) => {
     const parts = [];
     for (let cur = folder; cur; cur = cur.parent_id ? byId.get(cur.parent_id) : null) parts.unshift(cur.name);
     return parts.join(' / ');
   };
-  const excluded = kind === 'folder' ? descendantIds(tree, id) : new Set();
-  const options = [
-    { value: '', label: 'Person root' },
-    ...tree.filter((f) => !excluded.has(f.id)).map((f) => ({ value: String(f.id), label: pathOf(f) })),
-  ];
+  const excluded = excludeId ? descendantIds(tree, excludeId) : new Set();
+  const rootOption = state.level === 'edit'
+    ? [{ value: '', label: 'Person root' }]
+    : [{ value: String(state.folderId), label: 'Shared folder' }];
+  return [...rootOption, ...tree.filter((f) => !excluded.has(f.id)).map((f) => ({ value: String(f.id), label: pathOf(f) }))];
+}
+
+async function move(kind, id) {
+  const options = await moveTargets(kind === 'folder' ? id : null);
   const result = await formModal({
     title: `Move ${kind}`,
     fields: [{ name: 'target', label: 'Move to', type: 'select', value: '', options }],
@@ -970,7 +1474,7 @@ async function move(kind, id) {
   await moveTo(kind, id, result.target === '' ? null : Number(result.target));
 }
 
-// Shared by the Move dialog and drag and drop.
+// Shared by the Move dialog and drag and drop. Null means the person root.
 async function moveTo(kind, id, targetFolderId) {
   const body = kind === 'folder' ? { parent_id: targetFolderId } : { folder_id: targetFolderId };
   await api(`/${endpoint(kind)}/${id}`, { method: 'PATCH', body });
@@ -993,68 +1497,142 @@ async function remove(kind, id) {
   render();
 }
 
+async function toggleStar(kind, id, starred) {
+  await api('/stars', { method: 'PUT', body: { kind, id, starred } });
+  toast(starred ? 'Starred' : 'Removed from starred');
+  render();
+}
+
+// ---- Sharing ------------------------------------------------------------------------------
+
+async function openShareDialog(kind, id, name) {
+  const [shares, users] = await Promise.all([
+    api(`/shares?kind=${kind}&id=${id}`),
+    api('/share-users'),
+  ]);
+  const shared = new Set(shares.map((s) => String(s.email)));
+  const choices = users.filter((u) => !shared.has(u.email));
+  await openOverlay(`
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Share ${esc(name)}">
+      <h2>Share “${esc(name)}”</h2>
+      <p class="muted small">People you share with see this ${kind} in their “Shared with me” list.</p>
+      <div class="share-list">
+        ${shares.length ? shares.map((s) => `
+          <div class="share-item">
+            <span class="grow">${esc(s.email)} <span class="badge">${esc(s.permission)}</span></span>
+            <button class="btn small danger" type="button" data-revoke="${s.id}">Remove</button>
+          </div>`).join('') : '<p class="muted small">Not shared with anyone yet.</p>'}
+      </div>
+      ${choices.length ? `
+        <form id="share-form">
+          <label class="field"><span>Share with</span>
+            <select name="user_id">${choices.map((u) => `<option value="${u.id}">${esc(u.email)}</option>`).join('')}</select></label>
+          <label class="field"><span>Permission</span>
+            <select name="permission">
+              <option value="view">Can view and download</option>
+              <option value="edit">Can view, change and share</option>
+              <option value="dropbox">Upload only (cannot see contents)</option>
+            </select></label>
+          <p class="perm-help" id="perm-help">${PERMISSION_HELP.view}</p>
+          <div class="modal-actions"><button class="btn" type="button" data-close>Done</button><button class="btn primary">Share</button></div>
+        </form>` : `<p class="muted small">${users.length ? 'Everyone on this install already has access.' : 'There are no other accounts to share with yet. The super admin can create them.'}</p>
+        <div class="modal-actions"><button class="btn" type="button" data-close>Done</button></div>`}
+    </div>`, (root, close) => {
+    root.querySelectorAll('[data-revoke]').forEach((b) => b.addEventListener('click', async () => {
+      try {
+        await api(`/shares/${b.dataset.revoke}`, { method: 'DELETE' });
+        toast('Access removed');
+        close();
+        openShareDialog(kind, id, name);
+      } catch (err) {
+        toast(err.message, true);
+      }
+    }));
+    const form = root.querySelector('#share-form');
+    if (form) {
+      form.permission.addEventListener('change', () => {
+        root.querySelector('#perm-help').textContent = PERMISSION_HELP[form.permission.value];
+      });
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await api('/shares', {
+            method: 'POST',
+            body: { kind, id, user_id: Number(form.user_id.value), permission: form.permission.value },
+          });
+          toast('Shared');
+          close();
+          openShareDialog(kind, id, name);
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+    }
+  });
+}
+
+// ---- Menus -----------------------------------------------------------------------------
+
 function documentMenuItems(row) {
   const kind = row.dataset.kind;
+  const starredNow = row.dataset.starredNow === '1';
+  const star = { value: 'star', label: starredNow ? 'Remove star' : 'Star' };
   if (row.dataset.search) {
     return [
       { value: 'preview', label: 'Preview and details' },
       { value: 'download', label: 'Download' },
+      { value: 'share-app', label: 'Share to other apps' },
       { value: 'tags', label: 'Edit tags' },
       { value: 'reveal', label: 'Open folder' },
     ];
   }
-  if (kind === 'folder') {
-    return [
-      { value: 'rename', label: 'Rename' },
-      { value: 'move', label: 'Move' },
-      { value: 'delete', label: 'Move to recycle bin', danger: true },
-    ];
+  if (row.dataset.shared) {
+    if (kind === 'folder') return [{ value: 'open', label: 'Open' }, star];
+    return [{ value: 'preview', label: 'Preview and details' }, { value: 'download', label: 'Download' }, { value: 'share-app', label: 'Share to other apps' }, star];
   }
-  return [
-    { value: 'preview', label: 'Preview and details' },
-    { value: 'download', label: 'Download' },
-    { value: 'tags', label: 'Edit tags' },
-    { value: 'rename', label: 'Rename' },
-    { value: 'move', label: 'Move' },
-    { value: 'delete', label: 'Move to recycle bin', danger: true },
-  ];
+  const writable = canWrite();
+  if (kind === 'folder') {
+    const items = [{ value: 'open', label: 'Open' }, star];
+    if (writable) items.push({ value: 'details', label: 'Icon and description' }, { value: 'rename', label: 'Rename' }, { value: 'move', label: 'Move' });
+    items.push({ value: 'share', label: 'Share…' });
+    if (writable) items.push({ value: 'delete', label: 'Move to recycle bin', danger: true });
+    return items;
+  }
+  const items = [{ value: 'preview', label: 'Preview and details' }, { value: 'download', label: 'Download' }, { value: 'share-app', label: 'Share to other apps' }, star];
+  if (writable) items.push({ value: 'details', label: 'Description and expiry' }, { value: 'tags', label: 'Edit tags' }, { value: 'rename', label: 'Rename' }, { value: 'move', label: 'Move' });
+  items.push({ value: 'share', label: 'Share…' });
+  if (writable) items.push({ value: 'delete', label: 'Move to recycle bin', danger: true });
+  return items;
 }
 
 function userMenuItems(row) {
   if (row.dataset.self === '1') return [];
-  const items = [
+  return [
     { value: 'persons', label: 'Manage persons' },
     { value: 'reset', label: 'Reset password' },
     { value: 'toggle', label: row.dataset.active === '1' ? 'Disable account' : 'Enable account' },
     { value: 'role', label: row.dataset.role === 'super_admin' ? 'Remove super admin role' : 'Make super admin' },
     { value: 'delete', label: 'Delete login (documents are kept)', danger: true },
   ];
-  return items;
 }
 
-function recoveryMenuItems(row) {
-  if (row.dataset.status !== 'pending') return [];
-  return [
-    { value: 'approve', label: 'Approve and create temporary password' },
-    { value: 'reject', label: 'Reject request', danger: true },
-  ];
-}
+const recoveryMenuItems = (row) => (row.dataset.status !== 'pending' ? [] : [
+  { value: 'approve', label: 'Approve and create temporary password' },
+  { value: 'reject', label: 'Reject request', danger: true },
+]);
 
-function trashMenuItems() {
-  return [
-    { value: 'restore', label: 'Restore' },
-    { value: 'purge', label: 'Delete forever', danger: true },
-  ];
-}
+const trashMenuItems = () => [
+  { value: 'restore', label: 'Restore' },
+  { value: 'purge', label: 'Delete forever', danger: true },
+];
 
 async function openRowMenu(row) {
   const kind = row.dataset.kind;
-  const titles = {
+  const title = {
     user: () => row.dataset.email,
     recovery: () => row.dataset.email,
     trash: () => row.dataset.name,
-  };
-  const title = titles[kind]?.() ?? row.querySelector('.label').textContent.trim();
+  }[kind]?.() ?? row.querySelector('.label').textContent.trim();
   const items = {
     user: () => userMenuItems(row),
     recovery: () => recoveryMenuItems(row),
@@ -1073,8 +1651,20 @@ async function rowAction(action, row) {
   const kind = row.dataset.kind;
   const id = Number(row.dataset.id);
   try {
+    if (action === 'open') return go(state.personId, id);
     if (action === 'preview') return await openPreview(id);
     if (action === 'download') return (location.href = `/api/files/${id}/content?download=1`);
+    if (action === 'share-app') {
+      const file = await api(`/files/${id}`);
+      return await shareToApps(file);
+    }
+    if (action === 'share') return await openShareDialog(kind, id, row.querySelector('.label').textContent.trim());
+    if (action === 'star') return await toggleStar(kind, id, row.dataset.starredNow !== '1');
+    if (action === 'details') {
+      if (kind === 'folder') return await editFolderDetails(id);
+      const file = await api(`/files/${id}`);
+      return await editFileDetails(file);
+    }
     if (action === 'tags') {
       const file = await api(`/files/${id}`);
       return await editTags(id, file.tags);
@@ -1090,44 +1680,12 @@ async function rowAction(action, row) {
   }
 }
 
-async function newUser() {
-  const result = await formModal({
-    title: 'New user',
-    message: 'The user signs in with this temporary password and must choose their own at first sign-in.',
-    fields: [
-      { name: 'email', label: 'Email', type: 'email' },
-      { name: 'password', label: 'Temporary password (8+ characters)', type: 'password' },
-      {
-        name: 'role',
-        label: 'Role',
-        type: 'select',
-        value: 'user',
-        options: [
-          { value: 'user', label: 'User (works with assigned persons)' },
-          { value: 'super_admin', label: 'Super admin (manages everything)' },
-        ],
-      },
-      {
-        name: 'personIds',
-        label: 'Persons this user can access',
-        type: 'checkboxes',
-        value: [],
-        options: state.persons.map((p) => ({ value: p.id, label: p.name })),
-      },
-    ],
-    submit: 'Create user',
-  });
-  if (!result) return;
-  try {
-    await api('/users', {
-      method: 'POST',
-      body: { email: result.email, password: result.password, role: result.role, personIds: result.personIds.map(Number) },
-    });
-    toast('User created. Share the temporary password securely.');
-    render();
-  } catch (err) {
-    toast(err.message, true);
-  }
+// Works out whether a row is starred, so the menu shows the right label.
+async function prepareStarState(row) {
+  if (row.dataset.search || row.dataset.shared || row.dataset.starredNow !== undefined) return;
+  if (!['file', 'folder'].includes(row.dataset.kind)) return;
+  const starred = await api('/starred').catch(() => []);
+  row.dataset.starredNow = starred.some((s) => s.kind === row.dataset.kind && s.id === Number(row.dataset.id)) ? '1' : '0';
 }
 
 async function userAction(action, row) {
@@ -1234,7 +1792,7 @@ async function trashAction(action, row) {
     } else if (action === 'purge') {
       const result = await formModal({
         title: `Delete ${row.dataset.name} forever?`,
-        message: 'This cannot be undone. The file contents are removed from the server.',
+        message: 'This cannot be undone. The stored file is removed from the server.',
         submit: 'Delete forever',
         danger: true,
       });
@@ -1248,11 +1806,77 @@ async function trashAction(action, row) {
   }
 }
 
-// ---- Upload -----------------------------------------------------------------------
+// ---- Selection and bulk actions ----------------------------------------------------------
 
-async function uploadFiles(fileList) {
-  if (state.view !== 'files') return toast('Open a person to upload files', true);
-  if (!state.personId) return toast('Create a person first', true);
+function toggleSelect(kind, id, name, on) {
+  const key = itemKey(kind, id);
+  if (on) state.selected.set(key, { kind, id, name });
+  else state.selected.delete(key);
+}
+
+function renderBulkBar() {
+  const count = state.selected.size;
+  const bar = $('#bulk-bar');
+  bar.classList.toggle('hidden', !(state.selecting && count) || state.view !== 'files');
+  $('#bulk-count').textContent = `${count} selected`;
+  bar.querySelector('[data-bulk="delete"]').classList.toggle('hidden', !canWrite());
+  bar.querySelector('[data-bulk="move"]').classList.toggle('hidden', !canWrite());
+  bar.querySelector('[data-bulk="tag"]').classList.toggle('hidden', !canWrite());
+}
+
+async function bulk(action) {
+  const items = [...state.selected.values()];
+  if (action === 'clear') {
+    state.selected.clear();
+    return render();
+  }
+  if (!items.length) return;
+  try {
+    if (action === 'move') {
+      const options = await moveTargets(null);
+      const result = await formModal({
+        title: `Move ${items.length} item${items.length > 1 ? 's' : ''}`,
+        fields: [{ name: 'target', label: 'Move to', type: 'select', value: '', options }],
+        submit: 'Move',
+      });
+      if (!result) return;
+      const target = result.target === '' ? null : Number(result.target);
+      for (const item of items) {
+        const body = item.kind === 'folder' ? { parent_id: target } : { folder_id: target };
+        await api(`/${endpoint(item.kind)}/${item.id}`, { method: 'PATCH', body });
+      }
+    } else if (action === 'tag') {
+      const files = items.filter((i) => i.kind === 'file');
+      const result = await formModal({
+        title: `Tags for ${files.length} file${files.length === 1 ? '' : 's'}`,
+        message: 'These tags replace the existing tags on the selected files. Leave empty to remove them.',
+        fields: [{ name: 'tags', label: 'Tags', optional: true, placeholder: 'e.g. tax, 2026' }],
+        submit: 'Apply tags',
+      });
+      if (!result) return;
+      for (const item of files) await api(`/files/${item.id}/tags`, { method: 'PUT', body: { tags: result.tags } });
+    } else if (action === 'delete') {
+      const result = await formModal({
+        title: `Move ${items.length} item${items.length > 1 ? 's' : ''} to the recycle bin?`,
+        message: 'Folders take their contents with them. A super admin can restore them from the recycle bin.',
+        submit: 'Move to recycle bin',
+        danger: true,
+      });
+      if (!result) return;
+      for (const item of items) await api(`/${endpoint(item.kind)}/${item.id}`, { method: 'DELETE' });
+    }
+    state.selected.clear();
+    toast('Done');
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+// ---- Upload and import ------------------------------------------------------------------------
+
+async function uploadFiles(fileList, { camera = false } = {}) {
+  if (state.view !== 'files' || (!state.personId && !state.folderId)) return toast('Open a person or folder to upload', true);
   const files = [...fileList];
   if (!files.length) return;
 
@@ -1260,26 +1884,33 @@ async function uploadFiles(fileList) {
   const dates = files.map((f) => f.lastModified);
   const personId = state.personId;
   const folderId = state.folderId;
-  const tagResult = await formModal({
-    title: `Upload ${files.length} file${files.length > 1 ? 's' : ''}`,
+  const answers = await formModal({
+    title: `Upload ${files.length} file${files.length > 1 ? 's' : ''}${camera ? ' from camera' : ''}`,
     message: files.map((f) => f.name).slice(0, 5).join(', ') + (files.length > 5 ? ` and ${files.length - 5} more` : ''),
-    fields: [{ name: 'tags', label: 'Tags (optional)', optional: true, placeholder: 'e.g. tax, 2026' }],
+    fields: [
+      { name: 'tags', label: 'Tags (optional)', optional: true, placeholder: 'e.g. tax, 2026' },
+      { name: 'description', label: 'Description (optional)', type: 'textarea', optional: true },
+    ],
     submit: 'Upload',
   });
-  if (!tagResult) return;
+  if (!answers) return;
 
   const form = new FormData();
-  form.append('person_id', String(personId));
+  if (personId) form.append('person_id', String(personId));
   if (folderId) form.append('folder_id', String(folderId));
-  form.append('tags', tagResult.tags || '');
+  form.append('tags', answers.tags || '');
+  form.append('description', answers.description || '');
   form.append('file_dates', JSON.stringify(dates));
   for (const file of files) form.append('files', file);
+  sendUpload(form, files.length);
+}
 
+function sendUpload(form, count) {
   const bar = $('#upload-progress');
   const fill = bar.querySelector('.bar');
   bar.classList.remove('hidden');
   fill.style.width = '0%';
-  bar.querySelector('span').textContent = `Uploading ${files.length} file${files.length > 1 ? 's' : ''}…`;
+  bar.querySelector('span').textContent = `Uploading ${count} file${count > 1 ? 's' : ''}…`;
 
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/files');
@@ -1288,14 +1919,15 @@ async function uploadFiles(fileList) {
   };
   xhr.onload = () => {
     bar.classList.add('hidden');
-    let data = {};
+    let data = [];
     try {
       data = JSON.parse(xhr.responseText);
     } catch {
       // Non-JSON error bodies fall through to the generic message below.
     }
     if (xhr.status >= 200 && xhr.status < 300) {
-      toast(`Uploaded ${files.length} file${files.length > 1 ? 's' : ''}`);
+      const duplicates = Array.isArray(data) ? data.filter((f) => f.duplicates?.length).length : 0;
+      toast(`Uploaded ${count} file${count > 1 ? 's' : ''}${duplicates ? `. ${duplicates} ${duplicates > 1 ? 'are' : 'is'} identical to a file already stored.` : ''}`, duplicates > 0);
       refreshPersons().then(render);
     } else if (xhr.status === 401) {
       showLogin();
@@ -1310,18 +1942,82 @@ async function uploadFiles(fileList) {
   xhr.send(form);
 }
 
+// Folder import keeps every folder name, the nesting, and each file's date.
+// Folders do not carry an original date, so they are dated when imported.
+async function importFolder(fileList) {
+  const files = [...fileList].filter((f) => f.webkitRelativePath);
+  if (!files.length) return;
+  if (!state.personId && !state.folderId) return toast('Open a person or folder first', true);
+  const parentId = state.folderId;
+  const personId = state.personId;
+
+  // Every directory on the way to a file, shallowest first, so parents exist before children.
+  const dirs = new Set();
+  for (const f of files) {
+    const parts = f.webkitRelativePath.split('/').slice(0, -1);
+    for (let i = 1; i <= parts.length; i++) dirs.add(parts.slice(0, i).join('/'));
+  }
+  const ordered = [...dirs].sort((a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b));
+  const folderIds = new Map();
+  const bar = $('#upload-progress');
+  bar.classList.remove('hidden');
+  bar.querySelector('span').textContent = `Importing ${files.length} files…`;
+  bar.querySelector('.bar').style.width = '0%';
+  try {
+    for (const dir of ordered) {
+      const parts = dir.split('/');
+      const name = parts[parts.length - 1];
+      const parent = parts.slice(0, -1).join('/');
+      const parentFolder = parent ? folderIds.get(parent) : parentId;
+      const body = parentFolder ? { parent_id: parentFolder, name } : { person_id: personId, name };
+      const created = await api('/folders', { method: 'POST', body });
+      folderIds.set(dir, created.id);
+    }
+    const groups = new Map();
+    for (const f of files) {
+      const dir = f.webkitRelativePath.split('/').slice(0, -1).join('/');
+      groups.set(dir, [...(groups.get(dir) ?? []), f]);
+    }
+    let done = 0;
+    for (const [dir, group] of groups) {
+      for (let i = 0; i < group.length; i += 50) {
+        const chunk = group.slice(i, i + 50);
+        const form = new FormData();
+        if (personId) form.append('person_id', String(personId));
+        form.append('folder_id', String(folderIds.get(dir)));
+        form.append('file_dates', JSON.stringify(chunk.map((f) => f.lastModified)));
+        for (const f of chunk) form.append('files', f, f.name);
+        const res = await fetch('/api/files', { method: 'POST', body: form, credentials: 'same-origin' });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Import stopped');
+        done += chunk.length;
+        bar.querySelector('.bar').style.width = `${Math.round((done / files.length) * 100)}%`;
+        bar.querySelector('span').textContent = `Imported ${done} of ${files.length} files…`;
+      }
+    }
+    toast(`Imported ${files.length} files in ${folderIds.size} folders`);
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    bar.classList.add('hidden');
+    render();
+  }
+}
+
 async function newFolder() {
   const result = await formModal({
     title: 'New folder',
-    fields: [{ name: 'name', label: 'Folder name' }],
+    fields: [
+      { name: 'name', label: 'Folder name' },
+      { name: 'icon', label: 'Icon', type: 'icons', value: 'folder' },
+      { name: 'description', label: 'Description (optional)', type: 'textarea', optional: true },
+    ],
     submit: 'Create',
   });
   if (!result) return;
   try {
-    await api('/folders', {
-      method: 'POST',
-      body: { person_id: state.personId, parent_id: state.folderId, name: result.name },
-    });
+    const body = { parent_id: state.folderId, name: result.name, icon: result.icon, description: result.description };
+    if (!state.folderId) body.person_id = state.personId;
+    await api('/folders', { method: 'POST', body });
     toast('Folder created');
     render();
   } catch (err) {
@@ -1329,7 +2025,7 @@ async function newFolder() {
   }
 }
 
-// ---- Sorting ----------------------------------------------------------------------
+// ---- Sorting -------------------------------------------------------------------------------
 
 function setSort(key, dir) {
   state.sort = { key, dir };
@@ -1352,13 +2048,13 @@ function sortSheet() {
   });
 }
 
-// ---- Drag and drop -------------------------------------------------------------
+// ---- Drag and drop -------------------------------------------------------------------------
 
 function wireDragAndDrop() {
   const content = $('#content');
   content.addEventListener('dragstart', (e) => {
     const row = e.target.closest('.row[data-kind="file"], .row[data-kind="folder"]');
-    if (!row || row.dataset.search) return e.preventDefault();
+    if (!row || row.dataset.search || !canWrite()) return e.preventDefault();
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(ITEM_TYPE, JSON.stringify({ kind: row.dataset.kind, id: Number(row.dataset.id) }));
     row.classList.add('dragging');
@@ -1374,9 +2070,7 @@ function wireDragAndDrop() {
     e.preventDefault();
     row.classList.add('drop-target');
   });
-  content.addEventListener('dragleave', (e) => {
-    e.target.closest?.('.row')?.classList.remove('drop-target');
-  });
+  content.addEventListener('dragleave', (e) => e.target.closest?.('.row')?.classList.remove('drop-target'));
   content.addEventListener('drop', (e) => {
     if (!hasType(e, ITEM_TYPE)) return;
     const row = e.target.closest('.row[data-kind="folder"]');
@@ -1386,7 +2080,6 @@ function wireDragAndDrop() {
     dropItemOn(JSON.parse(e.dataTransfer.getData(ITEM_TYPE)), Number(row.dataset.id));
   });
 
-  // Breadcrumbs are drop targets too: the person root is the empty crumb.
   const crumbs = $('#crumbs');
   crumbs.addEventListener('dragover', (e) => {
     if (!hasType(e, ITEM_TYPE)) return;
@@ -1403,10 +2096,9 @@ function wireDragAndDrop() {
     e.preventDefault();
     crumb.classList.remove('drop-target');
     const target = crumb.dataset.crumb ? Number(crumb.dataset.crumb) : null;
-    dropItemOn(JSON.parse(e.dataTransfer.getData(ITEM_TYPE)), target, true);
+    dropItemOn(JSON.parse(e.dataTransfer.getData(ITEM_TYPE)), target);
   });
 
-  // Sidebar: admins reorder persons by dragging; items dropped on a person are refused.
   const nav = $('#person-list');
   nav.addEventListener('dragstart', (e) => {
     const button = e.target.closest('[data-person]');
@@ -1416,32 +2108,28 @@ function wireDragAndDrop() {
   });
   nav.addEventListener('dragover', (e) => {
     const button = e.target.closest('[data-person]');
-    if (!button) return;
-    if (hasType(e, PERSON_TYPE) || hasType(e, ITEM_TYPE)) {
-      e.preventDefault();
-      button.classList.add('drop-target');
-    }
+    if (!button || !hasType(e, PERSON_TYPE)) return;
+    e.preventDefault();
+    button.classList.add('drop-target');
   });
   nav.addEventListener('dragleave', (e) => e.target.closest?.('[data-person]')?.classList.remove('drop-target'));
   nav.addEventListener('drop', (e) => {
     const button = e.target.closest('[data-person]');
     document.querySelectorAll('.drop-target').forEach((el) => el.classList.remove('drop-target'));
-    if (!button) return;
+    if (!button || !hasType(e, PERSON_TYPE)) return;
     e.preventDefault();
-    if (hasType(e, PERSON_TYPE)) {
-      reorderPersons(Number(e.dataTransfer.getData(PERSON_TYPE)), Number(button.dataset.person));
-    } else if (hasType(e, ITEM_TYPE)) {
-      toast('Drag documents onto a folder inside the person. Moving between persons is not supported.', true);
-    }
+    reorderPersons(Number(e.dataTransfer.getData(PERSON_TYPE)), Number(button.dataset.person));
   });
 }
 
-async function dropItemOn(item, targetFolderId, toRoot = false) {
+async function dropItemOn(item, targetFolderId) {
   if (item.kind === 'folder' && item.id === targetFolderId) return;
   try {
-    const tree = await api(`/persons/${state.personId}/tree`);
-    if (item.kind === 'folder' && targetFolderId && descendantIds(tree, item.id).has(targetFolderId)) {
-      return toast('A folder cannot be moved into itself', true);
+    if (item.kind === 'folder' && targetFolderId) {
+      const targets = await moveTargets(item.id);
+      if (!targets.some((o) => o.value === String(targetFolderId))) {
+        return toast('A folder cannot be moved into itself', true);
+      }
     }
     await moveTo(item.kind, item.id, targetFolderId);
   } catch (err) {
@@ -1449,16 +2137,17 @@ async function dropItemOn(item, targetFolderId, toRoot = false) {
   }
 }
 
-// ---- Event wiring -----------------------------------------------------------------
+// ---- Event wiring ----------------------------------------------------------------------------
 
 window.addEventListener('hashchange', () => {
   const route = parseRoute();
-  state.view = viewAllowed(route.view) ? route.view : 'files';
-  if (state.view === 'files') {
-    state.personId = route.personId;
-    state.folderId = route.folderId;
-    if (!route.personId && state.persons.length) return go(state.persons[0].id, null);
+  state.view = route.view;
+  if (route.view === 'files') {
+    state.personId = route.personId ?? null;
+    state.folderId = route.folderId ?? null;
   }
+  if (ADMIN_VIEWS.includes(state.view) && !isAdmin()) state.view = 'home';
+  state.selected.clear();
   render();
 });
 
@@ -1472,34 +2161,97 @@ $('#collapse-btn').addEventListener('click', () => {
   writeStore('dk-sidebar', collapsed);
   applySidebarState(collapsed);
 });
-$('#account-btn').addEventListener('click', openSettings);
+$('#account-btn').addEventListener('click', () => openSettings('appearance'));
+
+document.querySelectorAll('[data-nav]').forEach((b) => {
+  b.addEventListener('click', () => navigate(`#/${b.dataset.nav}`));
+});
 
 $('#new-person').addEventListener('click', newPerson);
 $('#person-settings').addEventListener('click', personSettings);
 $('#sort-btn').addEventListener('click', sortSheet);
 $('#new-folder').addEventListener('click', newFolder);
 $('#upload-btn').addEventListener('click', () => $('#file-input').click());
+$('#camera-btn').addEventListener('click', () => $('#camera-input').click());
+$('#import-btn').addEventListener('click', () => $('#folder-input').click());
 $('#file-input').addEventListener('change', (e) => {
   const files = e.target.files;
   uploadFiles(files).finally(() => { e.target.value = ''; });
 });
+$('#camera-input').addEventListener('change', (e) => {
+  const files = e.target.files;
+  uploadFiles(files, { camera: true }).finally(() => { e.target.value = ''; });
+});
+$('#folder-input').addEventListener('change', (e) => {
+  const files = e.target.files;
+  importFolder(files).finally(() => { e.target.value = ''; });
+});
+$('#select-btn').addEventListener('click', () => {
+  state.selecting = !state.selecting;
+  if (!state.selecting) state.selected.clear();
+  render();
+});
+$('#bulk-bar').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-bulk]');
+  if (button) bulk(button.dataset.bulk);
+});
 $('#new-user').addEventListener('click', newUser);
+
+async function newUser() {
+  const result = await formModal({
+    title: 'New user',
+    message: 'The user signs in with this temporary password and must choose their own at first sign-in.',
+    fields: [
+      { name: 'email', label: 'Email', type: 'email' },
+      { name: 'password', label: 'Temporary password (8+ characters)', type: 'password' },
+      {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        value: 'user',
+        options: [
+          { value: 'user', label: 'User (works with assigned persons)' },
+          { value: 'super_admin', label: 'Super admin (manages everything)' },
+        ],
+      },
+      {
+        name: 'personIds',
+        label: 'Persons this user can access',
+        type: 'checkboxes',
+        value: [],
+        options: state.persons.map((p) => ({ value: p.id, label: p.name })),
+      },
+    ],
+    submit: 'Create user',
+  });
+  if (!result) return;
+  try {
+    await api('/users', {
+      method: 'POST',
+      body: { email: result.email, password: result.password, role: result.role, personIds: result.personIds.map(Number) },
+    });
+    toast('User created. Share the temporary password securely.');
+    render();
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
 
 $('#person-list').addEventListener('click', (e) => {
   const button = e.target.closest('[data-person]');
   if (button) go(Number(button.dataset.person), null);
 });
-for (const view of ['users', 'recovery', 'trash']) {
-  $(`#nav-${view}`).addEventListener('click', () => navigate(`#/${view}`));
-}
 
 $('#crumbs').addEventListener('click', (e) => {
   const crumb = e.target.closest('[data-crumb]');
-  if (crumb) go(state.personId, crumb.dataset.crumb ? Number(crumb.dataset.crumb) : null);
+  if (!crumb) return;
+  if (crumb.dataset.crumb) return go(state.personId, Number(crumb.dataset.crumb));
+  return go(Number(crumb.dataset.person ?? state.personId), null);
 });
 
 $('#content').addEventListener('click', (e) => {
   if (e.target.closest('[data-action="new-person"]')) return newPerson();
+  if (e.target.closest('[data-action="upload-here"]')) return $('#file-input').click();
   const sort = e.target.closest('[data-sort]');
   if (sort) {
     const key = sort.dataset.sort;
@@ -1508,9 +2260,30 @@ $('#content').addEventListener('click', (e) => {
   }
   const row = e.target.closest('.row[data-kind]');
   if (!row) return;
-  if (e.target.closest('[data-kebab]')) return openRowMenu(row);
+  if (e.target.closest('[data-kebab]')) {
+    return prepareStarState(row).then(() => openRowMenu(row));
+  }
+  if (e.target.closest('[data-pick]')) return; // the change listener handles selection
+  if (['user', 'trash', 'recovery'].includes(row.dataset.kind)) return;
+  if (state.selecting && !row.dataset.search) {
+    const box = row.querySelector('[data-pick]');
+    if (box) {
+      box.checked = !box.checked;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    return;
+  }
   if (row.dataset.kind === 'folder') return go(state.personId, Number(row.dataset.id));
   if (row.dataset.kind === 'file') return rowAction('preview', row);
+});
+
+$('#content').addEventListener('change', (e) => {
+  const box = e.target.closest?.('[data-pick]');
+  if (!box) return;
+  const row = box.closest('.row');
+  toggleSelect(row.dataset.kind, Number(row.dataset.id), row.querySelector('.label').textContent.trim(), box.checked);
+  row.classList.toggle('selected', box.checked);
+  renderBulkBar();
 });
 
 $('#content').addEventListener('keydown', (e) => {
@@ -1545,6 +2318,13 @@ document.addEventListener('drop', (e) => {
   $('#drop-hint').classList.add('hidden');
   uploadFiles(e.dataTransfer.files);
 });
+
+// Shared-with-me count on the sidebar.
+api('/shared').then((items) => {
+  const badge = $('#shared-count');
+  badge.textContent = items.length || '';
+  badge.classList.toggle('hidden', !items.length);
+}).catch(() => {});
 
 wireDragAndDrop();
 boot().catch((err) => toast(err.message, true));

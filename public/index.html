@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="day">
+<html lang="en" data-theme="day" data-text="normal" data-contrast="normal" data-density="comfortable">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,6 +7,7 @@
   <title>DocuKaksh</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/features.css">
 </head>
 <body>
   <div id="auth" class="auth hidden"></div>
@@ -20,6 +21,12 @@
         <button id="collapse-btn" class="btn ghost icon-btn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">«</button>
       </div>
 
+      <nav class="side-nav" aria-label="Main">
+        <button class="nav-item" type="button" data-nav="home" title="Home"><span class="nav-icon">⌂</span><span class="side-label">Home</span></button>
+        <button class="nav-item" type="button" data-nav="shared" title="Shared with me"><span class="nav-icon">⇄</span><span class="side-label">Shared with me</span><span id="shared-count" class="count hidden"></span></button>
+        <button class="nav-item" type="button" data-nav="starred" title="Starred"><span class="nav-icon">★</span><span class="side-label">Starred</span></button>
+      </nav>
+
       <div class="side-head">
         <span class="side-label">Persons</span>
         <button id="new-person" class="btn small side-label" type="button">+ New</button>
@@ -28,15 +35,11 @@
 
       <div id="admin-section" class="side-section hidden">
         <div class="side-head"><span class="side-label">Admin</span></div>
-        <button id="nav-users" class="nav-item" type="button" data-nav="users" title="Users">
-          <span class="nav-icon">👥</span><span class="side-label">Users</span>
-        </button>
-        <button id="nav-recovery" class="nav-item" type="button" data-nav="recovery" title="Recovery requests">
-          <span class="nav-icon">🔑</span><span class="side-label">Recovery</span><span id="recovery-count" class="count hidden"></span>
-        </button>
-        <button id="nav-trash" class="nav-item" type="button" data-nav="trash" title="Recycle bin">
-          <span class="nav-icon">🗑</span><span class="side-label">Recycle bin</span>
-        </button>
+        <button class="nav-item" type="button" data-nav="users" title="Users"><span class="nav-icon">👥</span><span class="side-label">Users</span></button>
+        <button class="nav-item" type="button" data-nav="recovery" title="Recovery requests"><span class="nav-icon">🔑</span><span class="side-label">Recovery</span><span id="recovery-count" class="count hidden"></span></button>
+        <button class="nav-item" type="button" data-nav="trash" title="Recycle bin"><span class="nav-icon">🗑</span><span class="side-label">Recycle bin</span></button>
+        <button class="nav-item" type="button" data-nav="audit" title="Audit log"><span class="nav-icon">≡</span><span class="side-label">Audit log</span></button>
+        <button class="nav-item" type="button" data-nav="system" title="System"><span class="nav-icon">⚙</span><span class="side-label">System</span></button>
       </div>
 
       <button id="account-btn" class="account" type="button" aria-label="Settings and account" title="Settings">
@@ -58,13 +61,27 @@
       <div id="toolbar" class="toolbar">
         <span id="item-count" class="muted small"></span>
         <span class="grow"></span>
+        <button id="select-btn" class="btn" type="button">Select</button>
         <button id="sort-btn" class="btn mobile-only" type="button">Sort</button>
         <button id="new-folder" class="btn" type="button">New folder</button>
+        <button id="import-btn" class="btn" type="button">Import folder</button>
+        <button id="camera-btn" class="btn mobile-only" type="button">Take photo</button>
         <button id="upload-btn" class="btn primary" type="button">Upload</button>
         <input id="file-input" type="file" multiple hidden>
+        <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+        <input id="folder-input" type="file" webkitdirectory directory multiple hidden>
         <button id="person-settings" class="btn ghost icon-btn" type="button" aria-label="Person settings" title="Person settings">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         </button>
+      </div>
+
+      <div id="bulk-bar" class="bulk-bar hidden" role="toolbar" aria-label="Selected items">
+        <span id="bulk-count"></span>
+        <span class="grow"></span>
+        <button class="btn small" type="button" data-bulk="move">Move</button>
+        <button class="btn small" type="button" data-bulk="tag">Tag</button>
+        <button class="btn small danger" type="button" data-bulk="delete">Move to bin</button>
+        <button class="btn small ghost" type="button" data-bulk="clear">Clear</button>
       </div>
 
       <div id="users-toolbar" class="toolbar hidden">

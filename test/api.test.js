@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -46,7 +47,7 @@ function uploadForm(personId, { folderId, name, body = 'data', type = 'text/plai
 
 before(async () => {
   dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'docukaksh-test-'));
-  const created = createApp({ dataDir });
+  const created = createApp({ dataDir, encryptionKey: crypto.randomBytes(32), loginMaxFailures: 1000 });
   db = created.db;
   await new Promise((resolve) => {
     server = created.app.listen(0, '127.0.0.1', resolve);
@@ -107,7 +108,7 @@ test('persons, nested folders and files', async () => {
   assert.equal(file.stored_name, undefined, 'internal storage name must not be exposed');
   assert.equal(file.uploaded_by_email, 'owner@example.com');
 
-  r = await call('GET', `/persons/${person.id}/browse?folder_id=${year.id}`);
+  r = await call('GET', `/folders/${year.id}/browse`);
   assert.deepEqual(r.data.folders.map((f) => f.name), ['Receipts']);
   assert.deepEqual(r.data.breadcrumb.map((c) => c.name), ['Taxes', '2025']);
 
@@ -146,7 +147,7 @@ test('files can be moved and renamed, and cross-person folders are refused', asy
   const taxes = tree.find((f) => f.name === 'Taxes');
   const receipts = tree.find((f) => f.name === 'Receipts');
 
-  const { data: inReceipts } = await call('GET', `/persons/${papa.id}/browse?folder_id=${receipts.id}`);
+  const { data: inReceipts } = await call('GET', `/folders/${receipts.id}/browse`);
   const notes = inReceipts.files.find((f) => f.name === 'notes.txt');
 
   let r = await call('PATCH', `/files/${notes.id}`, { body: { folder_id: taxes.id, name: 'notes-renamed.txt' } });

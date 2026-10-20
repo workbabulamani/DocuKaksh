@@ -97,6 +97,46 @@ export function openDatabase(dbPath) {
       resolved_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id INTEGER PRIMARY KEY,
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+      user_id INTEGER,
+      user_email TEXT,
+      action TEXT NOT NULL,
+      target_kind TEXT,
+      target_id INTEGER,
+      target_name TEXT,
+      detail TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS login_failures (
+      key TEXT PRIMARY KEY,
+      failures INTEGER NOT NULL DEFAULT 0,
+      locked_until INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS stars (
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      item_id INTEGER NOT NULL,
+      PRIMARY KEY (user_id, kind, item_id)
+    );
+
+    -- A share gives one user access to a folder or file that they would not otherwise see.
+    -- permission: 'view' (read), 'edit' (read and change), 'dropbox' (upload only, cannot list).
+    CREATE TABLE IF NOT EXISTS shares (
+      id INTEGER PRIMARY KEY,
+      kind TEXT NOT NULL,
+      item_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      permission TEXT NOT NULL,
+      created_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (kind, item_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
+    CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
     CREATE INDEX IF NOT EXISTS idx_persons_user ON persons(user_id);
     CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(person_id, parent_id);
     CREATE INDEX IF NOT EXISTS idx_files_folder ON files(person_id, folder_id);
@@ -132,6 +172,17 @@ function migrate(db) {
   ensureColumn(db, 'files', 'doc_created_at', 'TEXT');
   ensureColumn(db, 'files', 'deleted_at', 'TEXT');
   ensureColumn(db, 'files', 'deleted_by', 'INTEGER');
+
+  // Version 4: encryption flag, descriptions, icons, expiry dates, display preferences.
+  ensureColumn(db, 'files', 'encrypted', 'INTEGER NOT NULL DEFAULT 0');
+  ensureColumn(db, 'files', 'description', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'files', 'expires_on', 'TEXT');
+  ensureColumn(db, 'folders', 'description', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'folders', 'icon', "TEXT NOT NULL DEFAULT 'folder'");
+  ensureColumn(db, 'persons', 'description', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn(db, 'users', 'text_size', "TEXT NOT NULL DEFAULT 'normal'");
+  ensureColumn(db, 'users', 'contrast', "TEXT NOT NULL DEFAULT 'normal'");
+  ensureColumn(db, 'users', 'density', "TEXT NOT NULL DEFAULT 'comfortable'");
 
   // Creators of existing persons keep access to them.
   db.exec(`
