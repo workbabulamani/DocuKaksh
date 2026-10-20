@@ -1,0 +1,21 @@
+services:
+  docukaksh:
+    build: .
+    image: docukaksh:latest
+    container_name: docukaksh
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Set to "true" when the app is served over HTTPS (for example behind a reverse proxy).
+      COOKIE_SECURE: "false"
+      # Largest single file accepted for upload, in megabytes.
+      MAX_UPLOAD_MB: "100"
+    volumes:
+      - docukaksh-data:/data
+    # Small footprint: the app itself is a few tens of MB of RAM.
+    mem_limit: 256m
+    cpus: 1.0
+
+volumes:
+  docukaksh-data:

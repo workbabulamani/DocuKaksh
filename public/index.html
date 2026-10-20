@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>DocuKaksh</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="auth" class="auth hidden"></div>
+
+  <div id="app" class="app hidden">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">D</span>DocuKaksh</div>
+      <div class="side-head">
+        <span>Persons</span>
+        <button id="new-person" class="btn small" type="button">+ New</button>
+      </div>
+      <nav id="person-list" class="person-list" aria-label="Persons"></nav>
+      <button id="logout" class="btn ghost small side-foot" type="button">Sign out</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <nav id="crumbs" class="crumbs" aria-label="Breadcrumb"></nav>
+        <input id="search" class="search" type="search" placeholder="Search all files" aria-label="Search all files">
+      </header>
+
+      <div id="toolbar" class="toolbar">
+        <button id="new-folder" class="btn" type="button">New folder</button>
+        <button id="upload-btn" class="btn primary" type="button">Upload</button>
+        <input id="file-input" type="file" multiple hidden>
+        <span class="grow"></span>
+        <button id="edit-person" class="btn ghost" type="button">Edit person</button>
+        <button id="delete-person" class="btn ghost danger-text" type="button">Delete person</button>
+      </div>
+
+      <div id="upload-progress" class="progress hidden">
+        <div class="bar"></div>
+        <span></span>
+      </div>
+
+      <section id="content" class="content" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div id="drop-hint" class="drop-hint hidden">Drop files to upload</div>
+  <div id="modal-root"></div>
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>
